@@ -514,6 +514,32 @@ class ApiClient {
   getTripPDFUrl(tripId: string): string {
     return `${this.baseUrl}/trips/${tripId}/export/pdf/`;
   }
+
+  // ──── AI Budget Estimation ────
+  async estimateBudget(data: {
+    destination_city: string;
+    destination_country?: string;
+    departure_city?: string;
+    start_date?: string;
+    end_date?: string;
+    pace?: string;
+    stay_type?: string;
+    group_size?: number;
+    currency?: string;
+  }) {
+    return this.request<{
+      budget: number;
+      breakdown: Record<string, number>;
+      tips: string[];
+      confidence: 'low' | 'medium' | 'high';
+      currency: string;
+      duration_days: number;
+      ai_generated: boolean;
+    }>('/trips/estimate-budget/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export const api = new ApiClient();

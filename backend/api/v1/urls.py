@@ -6,7 +6,7 @@ from users.views import RegisterView, ProfileView, PreferencesView, LogoutView, 
 from trips.views import (
     TripListView, TripDetailView, TripGenerateView, TripHealthView,
     AccommodationView, BookingInsightsView, TripCustomizeView, TripAIChatView,
-    DestinationRecommendationView,
+    DestinationRecommendationView, BudgetEstimateView,
     # Notes
     TripNoteListCreateView, TripNoteDetailView,
     # Checklists
@@ -50,6 +50,7 @@ urlpatterns = [
     path('trips/', TripListView.as_view(), name='trip-list'),
     path('trips/<uuid:id>/', TripDetailView.as_view(), name='trip-detail'),
     path('trips/generate/', TripGenerateView.as_view(), name='trip-generate'),
+    path('trips/estimate-budget/', BudgetEstimateView.as_view(), name='budget-estimate'),
     path('trips/<uuid:trip_id>/health/', TripHealthView.as_view(), name='trip-health'),
     path('trips/<uuid:trip_id>/accommodation/', AccommodationView.as_view(), name='trip-accommodation'),
     path('trips/<uuid:trip_id>/booking-insights/', BookingInsightsView.as_view(), name='trip-booking-insights'),
