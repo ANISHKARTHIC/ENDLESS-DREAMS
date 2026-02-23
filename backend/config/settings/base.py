@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'monitoring',
     'feedback',
     'travel',
+    'telegram_bot',
 ]
 
 MIDDLEWARE = [
@@ -178,6 +179,14 @@ GOOGLE_PLACES_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY', '')
 AMADEUS_API_KEY = os.environ.get('AMADEUS_API_KEY', '')
 AMADEUS_API_SECRET = os.environ.get('AMADEUS_API_SECRET', '')
 EXCHANGE_RATE_API_KEY = os.environ.get('EXCHANGE_RATE_API_KEY', '')
+
+# Ollama (local LLM)
+OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434')
+OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'llama3.2')
+
+# Telegram Bot
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+TELEGRAM_WEBHOOK_URL = os.environ.get('TELEGRAM_WEBHOOK_URL', '')  # e.g. https://your-domain/api/v1/telegram/webhook/
 
 # Monitoring
 REPLAN_INTERVAL_MINUTES = int(os.environ.get('REPLAN_INTERVAL_MINUTES', 15))

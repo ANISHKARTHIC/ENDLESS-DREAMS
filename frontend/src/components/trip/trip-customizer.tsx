@@ -92,6 +92,12 @@ const QUICK_ACTIONS: QuickAction[] = [
     icon: <Gem className="h-4 w-4" />,
     description: "Off-the-beaten-path spots",
   },
+  {
+    id: "alter_today",
+    label: "Alter Today",
+    icon: <Wand2 className="h-4 w-4" />,
+    description: "AI-adjust today's live plan",
+  },
 ];
 
 interface TripCustomizerProps {

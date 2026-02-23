@@ -7,8 +7,9 @@ from trips.views import TripListView, TripDetailView, TripGenerateView, TripHeal
 from itineraries.views import (
     ItineraryDetailView, ItineraryByTripView, ActiveItineraryView,
     ItineraryItemUpdateView, ItineraryReorderView, ItineraryItemLockView,
+    ItineraryItemStatusView,
 )
-from places.views import PlaceListView, PlaceDetailView, PlaceByCityView
+from places.views import PlaceListView, PlaceDetailView, PlaceByCityView, PlaceGeocodeView, PlaceEnrichView
 from monitoring.views import ReplanEventListView, WeatherView, WeatherForecastView
 from feedback.views import FeedbackCreateView, FeedbackListView
 
@@ -40,14 +41,20 @@ urlpatterns = [
     path('itineraries/items/<uuid:id>/', ItineraryItemUpdateView.as_view(), name='item-update'),
     path('itineraries/<uuid:itinerary_id>/reorder/', ItineraryReorderView.as_view(), name='itinerary-reorder'),
     path('itineraries/items/<uuid:item_id>/lock/', ItineraryItemLockView.as_view(), name='item-lock'),
+    path('itineraries/items/<uuid:item_id>/status/', ItineraryItemStatusView.as_view(), name='item-status'),
 
     # Places
     path('places/', PlaceListView.as_view(), name='place-list'),
     path('places/<uuid:id>/', PlaceDetailView.as_view(), name='place-detail'),
     path('places/city/<str:city>/', PlaceByCityView.as_view(), name='places-by-city'),
+    path('places/geocode/', PlaceGeocodeView.as_view(), name='place-geocode'),
+    path('places/enrich/', PlaceEnrichView.as_view(), name='place-enrich'),
 
     # Travel & Currency
     path('travel/', include('travel.urls')),
+
+    # Telegram Bot
+    path('telegram/', include('telegram_bot.urls')),
 
     # Monitoring
     path('trips/<uuid:trip_id>/events/', ReplanEventListView.as_view(), name='replan-events'),

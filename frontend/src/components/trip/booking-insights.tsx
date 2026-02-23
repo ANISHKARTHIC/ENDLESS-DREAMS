@@ -8,14 +8,15 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
-  DollarSign,
   Lightbulb,
   Clock,
   BarChart3,
   ChevronDown,
   ChevronUp,
   ShieldCheck,
+  Coins,
 } from "lucide-react";
+import { useCurrency } from "@/contexts/currency-context";
 
 interface BookingInsightsProps {
   insights: BookingInsights;
@@ -40,6 +41,7 @@ function TrendIcon({ trend }: { trend: string }) {
 
 export function BookingInsightsPanel({ insights }: BookingInsightsProps) {
   const [expandedSection, setExpandedSection] = useState<string | null>("alerts");
+  const { convert, symbol } = useCurrency();
 
   const toggleSection = (section: string) => {
     setExpandedSection((prev) => (prev === section ? null : section));
@@ -115,8 +117,8 @@ export function BookingInsightsPanel({ insights }: BookingInsightsProps) {
                           )}
                           {alert.potential_savings_usd > 0 && (
                             <span className="flex items-center gap-1 text-[10px] text-green-600 font-medium">
-                              <DollarSign className="h-3 w-3" />
-                              Save ${alert.potential_savings_usd}
+                              <Coins className="h-3 w-3" />
+                              Save {symbol}{Math.round(convert(alert.potential_savings_usd))}
                             </span>
                           )}
                         </div>
@@ -137,7 +139,7 @@ export function BookingInsightsPanel({ insights }: BookingInsightsProps) {
           className="w-full flex items-center justify-between p-4 py-3 text-left hover:bg-muted/20 transition"
         >
           <span className="flex items-center gap-2 text-sm font-medium">
-            <DollarSign className="h-4 w-4 text-green-500" />
+            <Coins className="h-4 w-4 text-green-500" />
             Budget Breakdown
           </span>
           {expandedSection === "budget" ? (
@@ -158,20 +160,20 @@ export function BookingInsightsPanel({ insights }: BookingInsightsProps) {
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Total Budget</span>
-                    <span className="font-medium">${insights.daily_budget.total_budget_usd}</span>
+                    <span className="font-medium">{symbol}{Math.round(convert(insights.daily_budget.total_budget_usd))}</span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Accommodation</span>
-                    <span className="font-medium">-${insights.daily_budget.accommodation_cost_usd}</span>
+                    <span className="font-medium">-{symbol}{Math.round(convert(insights.daily_budget.accommodation_cost_usd))}</span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Travel</span>
-                    <span className="font-medium">-${insights.daily_budget.travel_cost_usd}</span>
+                    <span className="font-medium">-{symbol}{Math.round(convert(insights.daily_budget.travel_cost_usd))}</span>
                   </div>
                   <div className="h-px bg-border/50 my-1" />
                   <div className="flex justify-between text-xs">
                     <span className="text-foreground font-medium">Daily Activity Budget</span>
-                    <span className="font-bold text-primary">${insights.daily_budget.daily_activity_budget_usd}</span>
+                    <span className="font-bold text-primary">{symbol}{Math.round(convert(insights.daily_budget.daily_activity_budget_usd))}</span>
                   </div>
 
                   {/* Breakdown bars */}
@@ -187,7 +189,7 @@ export function BookingInsightsPanel({ insights }: BookingInsightsProps) {
                             }}
                           />
                         </div>
-                        <span className="text-[10px] font-medium w-10 text-right">${val}</span>
+                        <span className="text-[10px] font-medium w-10 text-right">{symbol}{Math.round(convert(val))}</span>
                       </div>
                     ))}
                   </div>
@@ -233,7 +235,7 @@ export function BookingInsightsPanel({ insights }: BookingInsightsProps) {
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] text-foreground truncate">{w.recommendation}</p>
                     </div>
-                    <span className="text-xs font-medium shrink-0">${w.avg_activity_cost_usd}</span>
+                    <span className="text-xs font-medium shrink-0">{symbol}{Math.round(convert(w.avg_activity_cost_usd))}</span>
                   </div>
                 ))}
               </div>

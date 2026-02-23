@@ -1,5 +1,7 @@
 """Place API views."""
-from rest_framework import generics, filters
+from rest_framework import generics, filters, status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Place
 from .serializers import PlaceSerializer, PlaceListSerializer
@@ -26,3 +28,36 @@ class PlaceByCityView(generics.ListAPIView):
     def get_queryset(self):
         city = self.kwargs['city']
         return Place.objects.filter(city__iexact=city)
+
+
+class PlaceGeocodeView(APIView):
+    """Geocode a place name using Mapbox Places API."""
+
+    def get(self, request):
+        query = request.query_params.get('q', '').strip()
+        if not query:
+            return Response({'error': 'q parameter required'}, status=400)
+
+        from services.mapbox_places_service import MapboxPlacesService
+        svc = MapboxPlacesService()
+        results = svc.geocode(query, limit=5)
+        return Response({'results': results})
+
+
+class PlaceEnrichView(APIView):
+    """Enrich all places in a city with accurate Mapbox coordinates."""
+
+    def post(self, request):
+        city = request.data.get('city', '').strip()
+        if not city:
+            return Response({'error': 'city required'}, status=400)
+
+        from services.mapbox_places_service import MapboxPlacesService
+        svc = MapboxPlacesService()
+        updated = svc.enrich_city_places(city, save=True)
+        total = Place.objects.filter(city__iexact=city).count()
+        return Response({
+            'city': city,
+            'places_enriched': updated,
+            'total_places': total,
+        })

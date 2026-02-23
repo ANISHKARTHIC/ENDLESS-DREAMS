@@ -5,7 +5,6 @@ import { cn, formatTime, getCategoryIcon, getCategoryColor } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {
   Clock,
-  DollarSign,
   Lock,
   Unlock,
   GripVertical,
@@ -14,10 +13,12 @@ import {
 } from "lucide-react";
 import type { ItineraryItem } from "@/types";
 import { motion } from "framer-motion";
+import { useCurrency } from "@/contexts/currency-context";
 
 interface ItineraryCardProps {
   item: ItineraryItem;
   onToggleLock?: (itemId: string) => void;
+  onStatusChange?: (itemId: string, status: string) => void;
   isDragging?: boolean;
   dragHandleProps?: Record<string, unknown>;
 }
@@ -25,9 +26,11 @@ interface ItineraryCardProps {
 export function ItineraryCard({
   item,
   onToggleLock,
+  onStatusChange,
   isDragging,
   dragHandleProps,
 }: ItineraryCardProps) {
+  const { convert, symbol } = useCurrency();
   const statusColors: Record<string, string> = {
     scheduled: "default",
     in_progress: "info",
@@ -101,6 +104,19 @@ export function ItineraryCard({
                       | "info"
                       | "outline"
                   }
+                  className={onStatusChange ? "cursor-pointer hover:opacity-80" : ""}
+                  onClick={() => {
+                    if (!onStatusChange) return;
+                    const nextStatus: Record<string, string> = {
+                      scheduled: "in_progress",
+                      in_progress: "completed",
+                      completed: "scheduled",
+                      skipped: "scheduled",
+                      replanned: "scheduled",
+                    };
+                    onStatusChange(item.id, nextStatus[item.status] || "scheduled");
+                  }}
+                  title={onStatusChange ? "Click to change status" : undefined}
                 >
                   {item.status}
                 </Badge>
@@ -135,8 +151,8 @@ export function ItineraryCard({
               <span>{item.duration_minutes}m</span>
             </div>
             <div className="flex items-center gap-1">
-              <DollarSign className="h-3.5 w-3.5" />
-              <span>${item.estimated_cost_usd}</span>
+              <span className="font-medium text-xs">{symbol}</span>
+              <span>{Math.round(convert(Number(item.estimated_cost_usd)))}</span>
             </div>
             {Number(item.place.rating) > 0 && (
               <div className="flex items-center gap-1">

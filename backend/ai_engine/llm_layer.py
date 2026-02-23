@@ -18,28 +18,51 @@ logger = logging.getLogger('ai_engine')
 
 
 class LLMLayer:
-    """Anthropic Claude integration for natural language tasks only."""
+    """LLM integration — Ollama (local) → Anthropic Claude → OpenAI → keyword fallback."""
 
     def __init__(self):
         self.api_key = getattr(settings, 'ANTHROPIC_API_KEY', '') or getattr(settings, 'OPENAI_API_KEY', '')
         self.client = None
+        self._provider = 'fallback'
 
-        if self.api_key and self.api_key.startswith('sk-ant-'):
-            # Anthropic Claude
+        # Priority 1: Ollama (local, free)
+        ollama_base = getattr(settings, 'OLLAMA_BASE_URL', 'http://localhost:11434')
+        ollama_model = getattr(settings, 'OLLAMA_MODEL', 'llama3.2')
+        if ollama_base:
+            try:
+                import requests as _req
+                _req.get(f'{ollama_base}/api/tags', timeout=2)
+                # Ollama is running — use OpenAI-compatible endpoint
+                import openai
+                self.client = openai.OpenAI(base_url=f'{ollama_base}/v1', api_key='ollama')
+                self._provider = 'ollama'
+                self._ollama_model = ollama_model
+                logger.info(f'LLM: Using Ollama ({ollama_model}) at {ollama_base}')
+            except Exception:
+                logger.info('Ollama not reachable — trying cloud providers')
+
+        # Priority 2: Anthropic Claude
+        if self._provider == 'fallback' and self.api_key and self.api_key.startswith('sk-ant-'):
             try:
                 import anthropic
                 self.client = anthropic.Anthropic(api_key=self.api_key)
                 self._provider = 'anthropic'
+                logger.info('LLM: Using Anthropic Claude')
             except ImportError:
                 logger.warning("anthropic package not installed — run: pip install anthropic")
-        elif self.api_key:
-            # Fallback to OpenAI if the key doesn't look like Anthropic
+
+        # Priority 3: OpenAI
+        if self._provider == 'fallback' and self.api_key and not self.api_key.startswith('sk-ant-'):
             try:
                 import openai
                 self.client = openai.OpenAI(api_key=self.api_key)
                 self._provider = 'openai'
+                logger.info('LLM: Using OpenAI')
             except ImportError:
                 logger.warning("openai package not installed")
+
+        if self._provider == 'fallback':
+            logger.warning('LLM: No AI provider available — using keyword fallback')
 
     def _call_llm(self, system_prompt: str, user_prompt: str, max_tokens: int = 500) -> str:
         """Make a call to the LLM API (Anthropic Claude or OpenAI)."""
@@ -58,6 +81,18 @@ class LLMLayer:
                     temperature=0.3,
                 )
                 return response.content[0].text
+            elif self._provider == 'ollama':
+                # Ollama via OpenAI-compatible endpoint
+                response = self.client.chat.completions.create(
+                    model=getattr(self, '_ollama_model', 'llama3.2'),
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    max_tokens=max_tokens,
+                    temperature=0.3,
+                )
+                return response.choices[0].message.content
             else:
                 # OpenAI path
                 response = self.client.chat.completions.create(
@@ -71,7 +106,7 @@ class LLMLayer:
                 )
                 return response.choices[0].message.content
         except Exception as e:
-            logger.error(f"LLM API error: {e}")
+            logger.error(f"LLM API error ({self._provider}): {e}")
             return self._fallback_response(user_prompt)
 
     def interpret_modification(self, user_input: str) -> Dict[str, Any]:

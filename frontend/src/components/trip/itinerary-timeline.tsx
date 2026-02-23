@@ -5,6 +5,7 @@ import { ItineraryCard } from "./itinerary-card";
 import type { ItineraryItem } from "@/types";
 import { motion } from "framer-motion";
 import { Calendar, Sun, Sunset, Moon } from "lucide-react";
+import { useCurrency } from "@/contexts/currency-context";
 import {
   DndContext,
   closestCenter,
@@ -27,14 +28,17 @@ interface ItineraryTimelineProps {
   dayGroups: Record<string, ItineraryItem[]>;
   onToggleLock?: (itemId: string) => void;
   onReorder?: (items: { item_id: string; day_number: number; order: number }[]) => void;
+  onStatusChange?: (itemId: string, status: string) => void;
 }
 
 function SortableItem({
   item,
   onToggleLock,
+  onStatusChange,
 }: {
   item: ItineraryItem;
   onToggleLock?: (id: string) => void;
+  onStatusChange?: (id: string, status: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id });
@@ -49,6 +53,7 @@ function SortableItem({
       <ItineraryCard
         item={item}
         onToggleLock={onToggleLock}
+        onStatusChange={onStatusChange}
         isDragging={isDragging}
         dragHandleProps={listeners}
       />
@@ -68,7 +73,9 @@ export function ItineraryTimeline({
   dayGroups,
   onToggleLock,
   onReorder,
+  onStatusChange,
 }: ItineraryTimelineProps) {
+  const { convert, symbol } = useCurrency();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -123,7 +130,7 @@ export function ItineraryTimeline({
               <div>
                 <h3 className="font-bold text-foreground text-lg">Day {day}</h3>
                 <p className="text-xs text-muted-foreground">
-                  {dayItems.length} activities &middot; ${totalCost.toFixed(0)}{" "}
+                  {dayItems.length} activities &middot; {symbol}{Math.round(convert(totalCost))}{" "}
                   &middot; {Math.round(totalDuration / 60)}h {totalDuration % 60}m
                 </p>
               </div>
@@ -146,7 +153,7 @@ export function ItineraryTimeline({
                       <div className="absolute -left-[33px] top-5 h-4 w-4 rounded-full bg-background border-2 border-primary flex items-center justify-center">
                         <div className="h-1.5 w-1.5 rounded-full bg-primary" />
                       </div>
-                      <SortableItem item={item} onToggleLock={onToggleLock} />
+                      <SortableItem item={item} onToggleLock={onToggleLock} onStatusChange={onStatusChange} />
                     </div>
                   ))}
                 </SortableContext>

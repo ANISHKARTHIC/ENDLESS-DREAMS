@@ -34,6 +34,8 @@ import type {
 } from "@/types";
 import Link from "next/link";
 import { TripCustomizer } from "@/components/trip/trip-customizer";
+import { TransportInfoCard } from "@/components/trip/transport-info";
+import { useCurrency } from "@/contexts/currency-context";
 import {
   Calendar,
   MapPin,
@@ -47,6 +49,7 @@ import {
   ArrowRight,
   Route,
   Navigation,
+  CalendarCheck,
 } from "lucide-react";
 
 export default function TripDetailPage() {
@@ -66,6 +69,14 @@ export default function TripDetailPage() {
     "itinerary"
   );
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
+  const { convert, symbol } = useCurrency();
+
+  // Determine if trip is happening today
+  const today = new Date().toISOString().slice(0, 10);
+  const isTripDay = trip ? trip.start_date <= today && trip.end_date >= today : false;
+  const currentDayNumber = trip && isTripDay
+    ? Math.ceil((new Date().getTime() - new Date(trip.start_date).getTime()) / 86400000) + 1
+    : null;
 
   // WebSocket for real-time updates
   const { lastMessage, isConnected } = useWebSocket(tripId);
@@ -121,7 +132,19 @@ export default function TripDetailPage() {
     async (itemId: string) => {
       try {
         await api.toggleLockItem(itemId);
-        // Refetch itinerary to get updated state
+        const updated = await api.getActiveItinerary(tripId);
+        setItinerary(updated);
+      } catch {
+        // Silent fail
+      }
+    },
+    [tripId]
+  );
+
+  const handleStatusChange = useCallback(
+    async (itemId: string, status: string) => {
+      try {
+        await api.updateItemStatus(itemId, status);
         const updated = await api.getActiveItinerary(tripId);
         setItinerary(updated);
       } catch {
@@ -277,8 +300,9 @@ export default function TripDetailPage() {
             {/* Budget bar */}
             <div className="mt-5">
               <BudgetProgress
-                spent={trip.budget_spent_usd}
-                total={trip.budget_usd}
+                spent={convert(Number(trip.budget_spent_usd))}
+                total={convert(Number(trip.budget_usd))}
+                currency={symbol}
               />
             </div>
           </motion.div>
@@ -356,6 +380,7 @@ export default function TripDetailPage() {
                       }
                       onToggleLock={handleToggleLock}
                       onReorder={handleReorder}
+                      onStatusChange={handleStatusChange}
                     />
                   ) : (
                     <div className="glass-card p-12 text-center">
@@ -387,6 +412,53 @@ export default function TripDetailPage() {
 
             {/* Sidebar */}
             <div className="space-y-6">
+              {/* Live Trip Day Banner */}
+              {isTripDay && currentDayNumber && (
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="glass-card p-5 border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                      <CalendarCheck className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-foreground">Today is Day {currentDayNumber}!</h3>
+                      <p className="text-xs text-muted-foreground">Your trip is live — alter plans in real-time</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Button
+                      variant="outline"
+                      className="w-full border-primary/30 hover:border-primary/50 hover:bg-primary/5 text-primary"
+                      onClick={() => {
+                        setSelectedDay(currentDayNumber);
+                        setActiveTab("itinerary");
+                      }}
+                    >
+                      View Today&apos;s Plan
+                    </Button>
+                    <Button
+                      className="w-full bg-gradient-to-r from-primary to-accent text-white"
+                      onClick={() => setIsCustomizerOpen(true)}
+                    >
+                      <Settings2 className="h-4 w-4 mr-1.5" />
+                      Alter Today&apos;s Plan
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Transport Details */}
+              {trip.selected_travel_summary && (
+                <TransportInfoCard
+                  summary={trip.selected_travel_summary}
+                  departureCity={trip.departure_city}
+                  destinationCity={trip.destination_city}
+                />
+              )}
+
               {/* Accommodation */}
               {accommodation.length > 0 && (
                 <AccommodationCard accommodations={accommodation} />

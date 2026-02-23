@@ -14,6 +14,7 @@ import {
   Coffee,
   Check,
 } from "lucide-react";
+import { useCurrency } from "@/contexts/currency-context";
 
 interface AccommodationCardProps {
   accommodations: Accommodation[];
@@ -45,6 +46,7 @@ function StayTypeBadge({ type }: { type: string }) {
 }
 
 export function AccommodationCard({ accommodations, compact }: AccommodationCardProps) {
+  const { convert, symbol } = useCurrency();
   if (!accommodations.length) return null;
 
   const recommended = accommodations.find((a) => a.is_recommended) || accommodations[0];
@@ -109,11 +111,11 @@ export function AccommodationCard({ accommodations, compact }: AccommodationCard
             {/* Price */}
             <div className="flex items-baseline gap-1">
               <span className="text-lg font-bold text-foreground">
-                ${recommended.price_per_night_usd}
+                {symbol}{Math.round(convert(recommended.price_per_night_usd))}
               </span>
               <span className="text-xs text-muted-foreground">/night</span>
               <span className="text-xs text-muted-foreground ml-1">
-                (${recommended.total_cost_usd} total)
+                ({symbol}{Math.round(convert(recommended.total_cost_usd))} total)
               </span>
             </div>
           </div>
@@ -183,7 +185,7 @@ export function AccommodationCard({ accommodations, compact }: AccommodationCard
                     {a.distance_to_attractions_km} km
                   </span>
                   <span className="text-sm font-semibold">
-                    ${a.price_per_night_usd}
+                    {symbol}{Math.round(convert(a.price_per_night_usd))}
                   </span>
                 </div>
               </div>

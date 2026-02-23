@@ -74,3 +74,29 @@ class ItineraryItemLockView(APIView):
         item.is_locked = not item.is_locked
         item.save()
         return Response({'id': str(item.id), 'is_locked': item.is_locked})
+
+
+class ItineraryItemStatusView(APIView):
+    """Update the status of an itinerary item (for live trip day tracking)."""
+
+    def post(self, request, item_id):
+        try:
+            item = ItineraryItem.objects.get(id=item_id)
+        except ItineraryItem.DoesNotExist:
+            return Response({'error': 'Item not found'}, status=404)
+
+        new_status = request.data.get('status', '').strip()
+        valid_statuses = ['scheduled', 'in_progress', 'completed', 'skipped', 'replanned']
+        if new_status not in valid_statuses:
+            return Response(
+                {'error': f'Invalid status. Must be one of: {", ".join(valid_statuses)}'},
+                status=400
+            )
+
+        item.status = new_status
+        item.save(update_fields=['status'])
+        return Response({
+            'id': str(item.id),
+            'status': item.status,
+            'place_name': item.place.name if item.place else '',
+        })

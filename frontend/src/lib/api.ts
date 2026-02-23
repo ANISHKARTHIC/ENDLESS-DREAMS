@@ -287,6 +287,28 @@ class ApiClient {
       body: JSON.stringify({ message }),
     });
   }
+
+  // Item Status (live trip day tracking)
+  async updateItemStatus(itemId: string, status: string) {
+    return this.request<{ id: string; status: string; place_name: string }>(
+      `/itineraries/items/${itemId}/status/`,
+      { method: 'POST', body: JSON.stringify({ status }) }
+    );
+  }
+
+  // Telegram Bot
+  async getTelegramStatus() {
+    return this.request<{ bot_configured: boolean; webhook_url: string; linked_users: number }>(
+      '/telegram/status/'
+    );
+  }
+
+  async setupTelegramWebhook() {
+    return this.request<{ ok: boolean; webhook_url: string }>(
+      '/telegram/setup/',
+      { method: 'POST' }
+    );
+  }
 }
 
 export const api = new ApiClient();

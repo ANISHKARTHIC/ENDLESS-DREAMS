@@ -95,6 +95,18 @@ class TripGenerateView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        # Enrich places with Mapbox geocoding (non-blocking best-effort)
+        try:
+            from services.mapbox_places_service import MapboxPlacesService
+            mapbox = MapboxPlacesService()
+            if mapbox.token:
+                for place in places:
+                    if not place.latitude or not place.longitude:
+                        mapbox.enrich_place(place)
+                        place.save(update_fields=['latitude', 'longitude'])
+        except Exception as e:
+            logger.warning(f'Mapbox enrichment skipped: {e}')
+
         # Score places
         scorer = ScoringEngine(trip)
         scored_places = scorer.score_all(places)
@@ -283,6 +295,24 @@ class TripCustomizeView(APIView):
     """AI-powered trip customizer — modify itinerary using natural language."""
     permission_classes = [permissions.AllowAny]
 
+    @staticmethod
+    def _build_alter_today_prompt(trip):
+        """Build a prompt for altering today's plan based on current time & status."""
+        import datetime
+        today = datetime.date.today()
+        try:
+            trip_start = datetime.date.fromisoformat(str(trip.start_date))
+            day_number = (today - trip_start).days + 1
+        except Exception:
+            day_number = 1
+        now_hour = datetime.datetime.now().hour
+        time_of_day = 'morning' if now_hour < 12 else ('afternoon' if now_hour < 17 else 'evening')
+        return (
+            f"Optimize Day {day_number} of my {trip.destination_city} trip for the {time_of_day}. "
+            f"It's currently {time_of_day}, so adjust remaining activities to fit the time left. "
+            f"Replace any completed or skipped activities with fresh alternatives."
+        )
+
     def post(self, request, trip_id):
         try:
             trip = Trip.objects.get(id=trip_id)
@@ -348,6 +378,7 @@ class TripCustomizeView(APIView):
                 'optimize_route': f"Optimize the route order of my {trip.destination_city} itinerary so nearby places are visited together, minimizing travel time.",
                 'add_nightlife': f"Add nightlife and evening entertainment to my {trip.destination_city} trip.",
                 'local_hidden_gems': f"Replace some tourist spots with local hidden gems and off-the-beaten-path experiences in {trip.destination_city}.",
+                'alter_today': self._build_alter_today_prompt(trip),
             }
             message = action_prompts.get(action, message or f"Customize my {trip.destination_city} trip: {action}")
 
