@@ -173,8 +173,10 @@ CELERY_BEAT_SCHEDULE = {}
 OPENWEATHER_API_KEY = os.environ.get('OPENWEATHER_API_KEY', '')
 MAPBOX_ACCESS_TOKEN = os.environ.get('MAPBOX_ACCESS_TOKEN', '')
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '') or OPENAI_API_KEY  # Claude key can be in either var
 GOOGLE_PLACES_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY', '')
 AMADEUS_API_KEY = os.environ.get('AMADEUS_API_KEY', '')
+AMADEUS_API_SECRET = os.environ.get('AMADEUS_API_SECRET', '')
 EXCHANGE_RATE_API_KEY = os.environ.get('EXCHANGE_RATE_API_KEY', '')
 
 # Monitoring

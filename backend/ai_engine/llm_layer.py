@@ -1,5 +1,5 @@
 """
-LLM Layer - Natural language intelligence.
+LLM Layer - Natural language intelligence via Anthropic Claude.
 
 Uses LLM ONLY for:
 - Natural language interpretation
@@ -18,34 +18,58 @@ logger = logging.getLogger('ai_engine')
 
 
 class LLMLayer:
-    """LLM integration for natural language tasks only."""
+    """Anthropic Claude integration for natural language tasks only."""
 
     def __init__(self):
-        self.api_key = getattr(settings, 'OPENAI_API_KEY', '')
+        self.api_key = getattr(settings, 'ANTHROPIC_API_KEY', '') or getattr(settings, 'OPENAI_API_KEY', '')
         self.client = None
-        if self.api_key:
+
+        if self.api_key and self.api_key.startswith('sk-ant-'):
+            # Anthropic Claude
+            try:
+                import anthropic
+                self.client = anthropic.Anthropic(api_key=self.api_key)
+                self._provider = 'anthropic'
+            except ImportError:
+                logger.warning("anthropic package not installed — run: pip install anthropic")
+        elif self.api_key:
+            # Fallback to OpenAI if the key doesn't look like Anthropic
             try:
                 import openai
                 self.client = openai.OpenAI(api_key=self.api_key)
+                self._provider = 'openai'
             except ImportError:
                 logger.warning("openai package not installed")
 
     def _call_llm(self, system_prompt: str, user_prompt: str, max_tokens: int = 500) -> str:
-        """Make a call to the LLM API."""
+        """Make a call to the LLM API (Anthropic Claude or OpenAI)."""
         if not self.client:
             return self._fallback_response(user_prompt)
 
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                max_tokens=max_tokens,
-                temperature=0.3,
-            )
-            return response.choices[0].message.content
+            if self._provider == 'anthropic':
+                response = self.client.messages.create(
+                    model="claude-sonnet-4-20250514",
+                    max_tokens=max_tokens,
+                    system=system_prompt,
+                    messages=[
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.3,
+                )
+                return response.content[0].text
+            else:
+                # OpenAI path
+                response = self.client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    max_tokens=max_tokens,
+                    temperature=0.3,
+                )
+                return response.choices[0].message.content
         except Exception as e:
             logger.error(f"LLM API error: {e}")
             return self._fallback_response(user_prompt)

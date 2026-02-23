@@ -28,11 +28,14 @@ DEFAULT_RATES = {
 class CurrencyService(BaseService):
     """Exchange rate service with 30-min caching."""
 
-    BASE_URL = 'https://api.exchangerate-api.com/v4'
-
     def __init__(self):
         super().__init__()
         self.api_key = getattr(settings, 'EXCHANGE_RATE_API_KEY', '')
+        # Use keyed endpoint when API key is available, otherwise open endpoint
+        if self.api_key:
+            self.BASE_URL = f'https://v6.exchangerate-api.com/v6/{self.api_key}'
+        else:
+            self.BASE_URL = 'https://api.exchangerate-api.com/v4'
 
     def refresh_rates_if_needed(self):
         """Refresh currency rates if older than 30 minutes."""
@@ -52,12 +55,20 @@ class CurrencyService(BaseService):
         """Fetch live rates from API."""
         from travel.models import CurrencyRate
 
-        data = self._get(f'/latest/INR')
-        if not data or 'rates' not in data:
+        # v6 keyed endpoint: /v6/{key}/latest/INR -> {conversion_rates: {...}}
+        # v4 open endpoint: /v4/latest/INR       -> {rates: {...}}
+        data = self._get('/latest/INR')
+        if not data:
             self._seed_mock_rates()
             return
 
-        for code, rate in data['rates'].items():
+        # Handle both v4 (data['rates']) and v6 (data['conversion_rates']) formats
+        rates = data.get('conversion_rates') or data.get('rates')
+        if not rates:
+            self._seed_mock_rates()
+            return
+
+        for code, rate in rates.items():
             if code in DEFAULT_RATES:
                 info = DEFAULT_RATES[code]
                 CurrencyRate.objects.update_or_create(
