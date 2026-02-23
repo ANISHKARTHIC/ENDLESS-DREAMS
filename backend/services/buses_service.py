@@ -70,9 +70,11 @@ class BusesService(BaseService):
         reverse_key = (arrival, departure)
 
         route = BUS_ROUTES.get(route_key) or BUS_ROUTES.get(reverse_key)
+        is_known_domestic = route_key in BUS_ROUTES or reverse_key in BUS_ROUTES
+
         if not route:
-            # Buses don't go internationally for our destinations
-            return []
+            # Generate a generic bus route for any city pair
+            route = {'duration': random.randint(360, 1200), 'base_price': random.randint(800, 2500)}
 
         if isinstance(date, str):
             date = datetime.strptime(date, '%Y-%m-%d').date()
@@ -81,8 +83,12 @@ class BusesService(BaseService):
         options = []
 
         num_buses = random.randint(3, 5)
-        indian_operators = [op for op in BUS_OPERATORS if op['code'] in ('RB', 'VRL', 'SRS', 'OT', 'KPN', 'GL')]
-        used_operators = random.sample(indian_operators, min(num_buses, len(indian_operators)))
+        # Use international operators for non-domestic routes
+        if is_known_domestic:
+            available_operators = [op for op in BUS_OPERATORS if op['code'] in ('RB', 'VRL', 'SRS', 'OT', 'KPN', 'GL')]
+        else:
+            available_operators = [op for op in BUS_OPERATORS if op['code'] in ('FLX', 'NX', 'GL')]
+        used_operators = random.sample(available_operators, min(num_buses, len(available_operators)))
 
         # Buses typically depart in evening / night for long routes
         departure_hours = [18, 19, 20, 21, 22, 23] if route['duration'] > 600 else [6, 8, 10, 14, 17, 20]

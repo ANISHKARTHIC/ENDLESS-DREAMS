@@ -2,8 +2,9 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, MapPin, X, Globe, Star } from "lucide-react";
+import { Search, MapPin, X, Globe, Star, Database } from "lucide-react";
 import { searchCities, REGIONS, WORLD_CITIES, type WorldCity } from "@/data/world-cities";
+import { api } from "@/lib/api";
 
 interface CitySearchProps {
   value: string;
@@ -19,22 +20,65 @@ export function CitySearch({ value, onChange, placeholder = "Search any city wor
   const [results, setResults] = useState<WorldCity[]>([]);
   const [activeRegion, setActiveRegion] = useState<string | null>(null);
   const [highlightIndex, setHighlightIndex] = useState(-1);
+  const [dbCities, setDbCities] = useState<WorldCity[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Fetch DB destinations on mount
+  useEffect(() => {
+    api.getDestinationCities().then((res) => {
+      const fromDb: WorldCity[] = res.cities
+        .filter((c) => !WORLD_CITIES.find((w) => w.city.toLowerCase() === c.city.toLowerCase()))
+        .map((c) => ({
+          city: c.city,
+          country: c.country,
+          countryCode: "",
+          emoji: "📍",
+          lat: c.lat,
+          lng: c.lng,
+          description: `${c.place_count} places to explore`,
+          region: "Asia" as const, // default
+          popular: c.place_count >= 8,
+        }));
+      setDbCities(fromDb);
+    }).catch(() => {});
+  }, []);
+
+  const allCities = [...WORLD_CITIES, ...dbCities];
+
   const doSearch = useCallback((q: string, region: string | null) => {
-    let filtered = q.trim()
-      ? searchCities(q, 50)
-      : WORLD_CITIES.filter(c => c.popular);
+    let filtered: WorldCity[];
+    if (q.trim()) {
+      const qLower = q.toLowerCase().trim();
+      // Search both world-cities and DB cities
+      const worldResults = searchCities(q, 50);
+      const dbResults = dbCities.filter(
+        (c) =>
+          c.city.toLowerCase().includes(qLower) ||
+          c.country.toLowerCase().includes(qLower)
+      );
+      // Merge, deduplicate
+      const seen = new Set<string>();
+      filtered = [];
+      for (const c of [...worldResults, ...dbResults]) {
+        const key = c.city.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          filtered.push(c);
+        }
+      }
+    } else {
+      filtered = allCities.filter((c) => c.popular);
+    }
     if (region) {
       filtered = filtered.filter(c => c.region === region);
     }
     if (excludeCities.length > 0) {
       filtered = filtered.filter(c => !excludeCities.includes(c.city));
     }
-    setResults(filtered.slice(0, 12));
+    setResults(filtered.slice(0, 16));
     setHighlightIndex(-1);
-  }, [excludeCities]);
+  }, [excludeCities, dbCities, allCities]);
 
   useEffect(() => {
     doSearch(query, activeRegion);
@@ -91,10 +135,12 @@ export function CitySearch({ value, onChange, placeholder = "Search any city wor
           <div className="flex-1">
             <p className="font-semibold text-foreground">{value}</p>
             {(() => {
-              const city = WORLD_CITIES.find(c => c.city === value);
+              const city = allCities.find(c => c.city === value);
               return city ? (
                 <p className="text-xs text-muted-foreground">{city.country} · {city.description}</p>
-              ) : null;
+              ) : (
+                <p className="text-xs text-muted-foreground">{value}</p>
+              );
             })()}
           </div>
           <button
@@ -219,7 +265,7 @@ export function CitySearch({ value, onChange, placeholder = "Search any city wor
             {/* Footer */}
             <div className="px-3 py-2 border-t border-border/50 flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground/60">
-                {WORLD_CITIES.length} destinations worldwide
+                {allCities.length} destinations worldwide
               </span>
               <span className="text-[10px] text-muted-foreground/60">
                 ↑↓ Navigate · Enter Select · Esc Close

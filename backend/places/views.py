@@ -61,3 +61,32 @@ class PlaceEnrichView(APIView):
             'places_enriched': updated,
             'total_places': total,
         })
+
+
+class DestinationCitiesView(APIView):
+    """Return all unique destination cities from the places database,
+    with place count and average coordinates — for the destination search."""
+
+    def get(self, request):
+        q = request.query_params.get('q', '').strip()
+        from django.db.models import Count, Avg
+        qs = Place.objects.values('city', 'country').annotate(
+            place_count=Count('id'),
+            lat=Avg('latitude'),
+            lng=Avg('longitude'),
+        ).order_by('-place_count')
+
+        if q:
+            qs = qs.filter(city__icontains=q) | qs.filter(country__icontains=q)
+
+        cities = [
+            {
+                'city': r['city'],
+                'country': r['country'],
+                'place_count': r['place_count'],
+                'lat': round(r['lat'], 4),
+                'lng': round(r['lng'], 4),
+            }
+            for r in qs[:50]
+        ]
+        return Response({'cities': cities})

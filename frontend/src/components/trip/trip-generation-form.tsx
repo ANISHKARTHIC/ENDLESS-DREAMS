@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { TravelComparison } from "@/components/trip/travel-comparison";
 import { InteractiveGlobe } from "@/components/globe/interactive-globe";
+import { DestinationPreviewMap } from "@/components/map/destination-preview-map";
 import { CitySearch } from "@/components/search/city-search";
 import { getCityData, type WorldCity } from "@/data/world-cities";
 import { useCurrency } from "@/contexts/currency-context";
@@ -241,81 +242,85 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
         </motion.div>
       </AnimatePresence>
 
-      {/* Step 0: Departure + Destination + Globe */}
+      {/* Step 0: Departure + Destination + Map Preview */}
       {step === 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
-          {/* 3D Globe - Hero element */}
-          <div className="flex justify-center mb-4">
-            <div className="relative">
-              <InteractiveGlobe
-                focusLat={destCity?.lat}
-                focusLng={destCity?.lng}
-                departureLat={depCity?.lat}
-                departureLng={depCity?.lng}
-                size={320}
-                className="mx-auto"
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left: Search fields */}
+            <div className="space-y-5">
+              {/* Destination city search */}
+              <CitySearch
+                label="Enter your dream destination"
+                value={form.destination_city}
+                onChange={handleDestinationSelect}
+                placeholder="Search any destination worldwide..."
+                excludeCities={form.departure_city ? [form.departure_city] : []}
+              />
+
+              {/* Animated connector */}
+              {form.destination_city && (
+                <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-accent/30 to-transparent" />
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20"
+                  >
+                    <ArrowRight className="h-4 w-4 text-white rotate-180" />
+                  </motion.div>
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+                </div>
+              )}
+
+              {/* Departure city search */}
+              <CitySearch
+                label="Starting point of your dream"
+                value={form.departure_city || ""}
+                onChange={handleDepartureSelect}
+                placeholder="Search departure city..."
+                excludeCities={form.destination_city ? [form.destination_city] : []}
+              />
+
+              {/* Route info badge */}
+              <AnimatePresence>
+                {form.departure_city && form.destination_city && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="flex items-center justify-center gap-3 px-5 py-2.5 rounded-full glass text-sm font-medium shadow-lg mx-auto w-fit"
+                  >
+                    <span className="flex items-center gap-1.5 text-primary">
+                      <Navigation className="h-3.5 w-3.5" />
+                      {form.departure_city}
+                    </span>
+                    <Route className="h-3.5 w-3.5 text-accent animate-pulse" />
+                    <span className="flex items-center gap-1.5 text-accent">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {form.destination_city}
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Right: Map preview */}
+            <div className="relative min-h-[320px] lg:min-h-[380px]">
+              <DestinationPreviewMap
+                destLat={destCity?.lat}
+                destLng={destCity?.lng}
+                destName={form.destination_city || undefined}
+                depLat={depCity?.lat}
+                depLng={depCity?.lng}
+                depName={form.departure_city || undefined}
+                className="h-full w-full"
               />
             </div>
           </div>
-
-          {/* Route info - below globe, not overlapping */}
-          <AnimatePresence>
-            {form.departure_city && form.destination_city && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="flex items-center justify-center gap-3 px-5 py-2.5 rounded-full glass text-sm font-medium shadow-lg mx-auto w-fit"
-              >
-                <span className="flex items-center gap-1.5 text-primary">
-                  <Navigation className="h-3.5 w-3.5" />
-                  {form.departure_city}
-                </span>
-                <Route className="h-3.5 w-3.5 text-accent animate-pulse" />
-                <span className="flex items-center gap-1.5 text-accent">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {form.destination_city}
-                </span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Destination city search */}
-          <CitySearch
-            label="Enter your dream destination"
-            value={form.destination_city}
-            onChange={handleDestinationSelect}
-            placeholder="Search any destination worldwide..."
-            excludeCities={form.departure_city ? [form.departure_city] : []}
-          />
-
-          {/* Animated connector */}
-          {form.destination_city && (
-            <div className="flex items-center justify-center gap-2 text-muted-foreground">
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-accent/30 to-transparent" />
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20"
-              >
-                <ArrowRight className="h-4 w-4 text-white rotate-180" />
-              </motion.div>
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-            </div>
-          )}
-
-          {/* Departure city search */}
-          <CitySearch
-            label="Starting point of your dream"
-            value={form.departure_city || ""}
-            onChange={handleDepartureSelect}
-            placeholder="Search departure city..."
-            excludeCities={form.destination_city ? [form.destination_city] : []}
-          />
         </motion.div>
       )}
 

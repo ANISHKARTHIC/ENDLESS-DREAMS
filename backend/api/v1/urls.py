@@ -3,13 +3,13 @@ from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from users.views import RegisterView, ProfileView, PreferencesView, LogoutView
-from trips.views import TripListView, TripDetailView, TripGenerateView, TripHealthView, AccommodationView, BookingInsightsView, TripCustomizeView, TripAIChatView
+from trips.views import TripListView, TripDetailView, TripGenerateView, TripHealthView, AccommodationView, BookingInsightsView, TripCustomizeView, TripAIChatView, DestinationRecommendationView
 from itineraries.views import (
     ItineraryDetailView, ItineraryByTripView, ActiveItineraryView,
     ItineraryItemUpdateView, ItineraryReorderView, ItineraryItemLockView,
     ItineraryItemStatusView,
 )
-from places.views import PlaceListView, PlaceDetailView, PlaceByCityView, PlaceGeocodeView, PlaceEnrichView
+from places.views import PlaceListView, PlaceDetailView, PlaceByCityView, PlaceGeocodeView, PlaceEnrichView, DestinationCitiesView
 from monitoring.views import ReplanEventListView, WeatherView, WeatherForecastView
 from feedback.views import FeedbackCreateView, FeedbackListView
 
@@ -49,6 +49,10 @@ urlpatterns = [
     path('places/city/<str:city>/', PlaceByCityView.as_view(), name='places-by-city'),
     path('places/geocode/', PlaceGeocodeView.as_view(), name='place-geocode'),
     path('places/enrich/', PlaceEnrichView.as_view(), name='place-enrich'),
+    path('places/destinations/', DestinationCitiesView.as_view(), name='destination-cities'),
+
+    # Recommendations
+    path('recommendations/', DestinationRecommendationView.as_view(), name='destination-recommendations'),
 
     # Travel & Currency
     path('travel/', include('travel.urls')),

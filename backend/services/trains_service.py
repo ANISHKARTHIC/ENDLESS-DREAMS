@@ -88,9 +88,13 @@ class TrainsService(BaseService):
             or INTERNATIONAL_ROUTES.get(reverse_key)
         )
 
+        # Determine if this is a known or generic route
+        is_known_international = route_key in INTERNATIONAL_ROUTES or reverse_key in INTERNATIONAL_ROUTES
+        is_known_domestic = route_key in DOMESTIC_ROUTES or reverse_key in DOMESTIC_ROUTES
+
         if not route:
-            # If no direct train route exists, skip (trains don't fly over oceans)
-            return []
+            # Generate a generic train route for any city pair
+            route = {'duration': random.randint(300, 960), 'base_price': random.randint(1500, 6000)}
 
         if isinstance(date, str):
             date = datetime.strptime(date, '%Y-%m-%d').date()
@@ -100,7 +104,7 @@ class TrainsService(BaseService):
 
         # Generate 2-4 train options
         num_trains = random.randint(2, 4)
-        is_international = route_key in INTERNATIONAL_ROUTES or reverse_key in INTERNATIONAL_ROUTES
+        is_international = is_known_international or (not is_known_domestic)
 
         if is_international:
             operators = [op for op in TRAIN_OPERATORS if op['code'] in ('ES', 'JR', 'TGV', 'ACL')]

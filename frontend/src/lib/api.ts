@@ -213,6 +213,30 @@ class ApiClient {
     return this.request<{ results: Place[] }>(`/places/city/${city}/`);
   }
 
+  // Destination cities (all cities in DB)
+  async getDestinationCities(q?: string) {
+    const params = q ? `?q=${encodeURIComponent(q)}` : '';
+    return this.request<{ cities: { city: string; country: string; place_count: number; lat: number; lng: number }[] }>(
+      `/places/destinations/${params}`
+    );
+  }
+
+  // Destination Recommendations
+  async getRecommendations(city: string) {
+    return this.request<{
+      city: string;
+      cost_index: number;
+      place_count: number;
+      categories: Record<string, number>;
+      daily_budget_usd: number;
+      budget_tiers: Record<string, { daily_usd: number; label: string; description: string }>;
+      recommended_days: { min: number; ideal: number; max: number };
+      best_time_to_visit: string[];
+      breakdown: Record<string, { daily_usd: number; pct: number }>;
+      top_places: { name: string; category: string; rating: number; avg_cost_usd: number; avg_duration_minutes: number }[];
+    }>(`/recommendations/?city=${encodeURIComponent(city)}`);
+  }
+
   // Weather
   async getWeather(city: string) {
     return this.request<WeatherData>(`/weather/?city=${encodeURIComponent(city)}`);

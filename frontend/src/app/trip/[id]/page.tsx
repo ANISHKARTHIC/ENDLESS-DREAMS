@@ -35,6 +35,7 @@ import type {
 import Link from "next/link";
 import { TripCustomizer } from "@/components/trip/trip-customizer";
 import { TransportInfoCard } from "@/components/trip/transport-info";
+import { DestinationRecommendations } from "@/components/trip/destination-recommendations";
 import { useCurrency } from "@/contexts/currency-context";
 import {
   Calendar,
@@ -46,10 +47,13 @@ import {
   Activity,
   Settings2,
   Plane,
+  Train,
+  Bus,
   ArrowRight,
   Route,
   Navigation,
   CalendarCheck,
+  TrendingUp,
 } from "lucide-react";
 
 export default function TripDetailPage() {
@@ -65,7 +69,7 @@ export default function TripDetailPage() {
   const [bookingInsights, setBookingInsights] = useState<BookingInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<number | undefined>();
-  const [activeTab, setActiveTab] = useState<"itinerary" | "map" | "events">(
+  const [activeTab, setActiveTab] = useState<"itinerary" | "map" | "recommendations" | "events">(
     "itinerary"
   );
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
@@ -281,7 +285,12 @@ export default function TripDetailPage() {
                 <div className="flex-1 flex items-center gap-1.5">
                   <div className="flex-1 h-px bg-gradient-to-r from-primary/50 to-accent/50" />
                   <div className="flex items-center gap-1">
-                    <Plane className="h-4 w-4 text-accent -rotate-12" />
+                    {(() => {
+                      const type = trip.selected_travel_summary?.transport_type;
+                      if (type === 'train') return <Train className="h-4 w-4 text-emerald-400" />;
+                      if (type === 'bus') return <Bus className="h-4 w-4 text-amber-400" />;
+                      return <Plane className="h-4 w-4 text-accent -rotate-12" />;
+                    })()}
                     {trip.selected_travel_summary && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-medium">
                         {trip.selected_travel_summary.provider_name} · {trip.selected_travel_summary.transport_type}
@@ -313,6 +322,7 @@ export default function TripDetailPage() {
               [
                 { key: "itinerary", label: "Itinerary", icon: Activity },
                 { key: "map", label: "Map", icon: MapPin },
+                { key: "recommendations", label: "Insights", icon: TrendingUp },
                 { key: "events", label: "Events", icon: RefreshCw },
               ] as const
             ).map((tab) => (
@@ -402,6 +412,14 @@ export default function TripDetailPage() {
                   selectedDay={selectedDay}
                   onDaySelect={setSelectedDay}
                   className="min-h-[600px]"
+                />
+              )}
+
+              {activeTab === "recommendations" && (
+                <DestinationRecommendations
+                  city={trip.destination_city}
+                  tripDays={trip.duration_days}
+                  tripBudgetUsd={Number(trip.budget_usd)}
                 />
               )}
 

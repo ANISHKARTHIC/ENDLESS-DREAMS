@@ -555,3 +555,17 @@ class TripAIChatView(APIView):
         llm = LLMLayer()
         response_text = llm.chat_response(message, trip_context)
         return Response({'message': response_text})
+
+
+class DestinationRecommendationView(APIView):
+    """Get price / days / breakdown recommendations for a destination city."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        city = request.query_params.get('city', '').strip()
+        if not city:
+            return Response({'error': 'city query param required'}, status=400)
+
+        from trips.recommendation_service import get_destination_recommendations
+        data = get_destination_recommendations(city)
+        return Response(data)
