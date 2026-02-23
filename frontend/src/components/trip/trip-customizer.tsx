@@ -18,11 +18,15 @@ import {
   User,
   Loader2,
   ChevronDown,
+  ChevronUp,
   Wand2,
   MessageSquare,
+  Trash2,
+  MapPin as MapPinIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
-import type { Itinerary } from "@/types";
+import { getCategoryIcon, formatTime } from "@/lib/utils";
+import type { Itinerary, ItineraryItem } from "@/types";
 
 interface Message {
   id: string;
@@ -93,6 +97,7 @@ const QUICK_ACTIONS: QuickAction[] = [
 interface TripCustomizerProps {
   tripId: string;
   destination: string;
+  items: ItineraryItem[];
   isOpen: boolean;
   onClose: () => void;
   onItineraryUpdate: (itinerary: Itinerary) => void;
@@ -101,6 +106,7 @@ interface TripCustomizerProps {
 export function TripCustomizer({
   tripId,
   destination,
+  items,
   isOpen,
   onClose,
   onItineraryUpdate,
@@ -116,6 +122,7 @@ export function TripCustomizer({
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(true);
+  const [showItinerary, setShowItinerary] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -234,6 +241,80 @@ export function TripCustomizer({
                 <X className="h-5 w-5 text-muted-foreground" />
               </button>
             </div>
+
+            {/* Inline Itinerary — collapsible */}
+            {items.length > 0 && (
+              <div className="border-b border-border">
+                <button
+                  onClick={() => setShowItinerary(!showItinerary)}
+                  className="flex items-center justify-between w-full px-4 py-2.5 text-sm hover:bg-muted/30 transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <MapPinIcon className="h-3.5 w-3.5" />
+                    <span className="font-medium">Current Itinerary</span>
+                    <span className="text-xs bg-muted px-1.5 py-0.5 rounded-full">
+                      {items.length}
+                    </span>
+                  </span>
+                  {showItinerary ? (
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </button>
+                {showItinerary && (
+                  <div className="px-3 pb-3 max-h-[250px] overflow-y-auto scrollbar-hide">
+                    {(() => {
+                      const days = [
+                        ...new Set(items.map((i) => i.day_number)),
+                      ].sort((a, b) => a - b);
+                      return days.map((day) => {
+                        const dayItems = items
+                          .filter((i) => i.day_number === day)
+                          .sort((a, b) => a.order - b.order);
+                        return (
+                          <div key={day} className="mb-2">
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
+                              Day {day}
+                            </p>
+                            {dayItems.map((item) => (
+                              <div
+                                key={item.id}
+                                className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-muted/50 group transition-colors"
+                              >
+                                <span className="text-sm flex-shrink-0">
+                                  {getCategoryIcon(item.place.category)}
+                                </span>
+                                <span className="flex-1 text-xs font-medium text-foreground truncate">
+                                  {item.place.name}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                                  {formatTime(item.start_time)}
+                                </span>
+                                {!item.is_locked && (
+                                  <button
+                                    onClick={() =>
+                                      handleSend(
+                                        `Remove ${item.place.name} from my itinerary`
+                                      )
+                                    }
+                                    disabled={isLoading}
+                                    className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-500 transition-all flex-shrink-0 disabled:opacity-30"
+                                    title={`Remove ${item.place.name}`}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
