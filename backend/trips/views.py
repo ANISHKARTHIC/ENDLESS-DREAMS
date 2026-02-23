@@ -6,8 +6,13 @@ import uuid
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import Trip
-from .serializers import TripSerializer, TripListSerializer, TripCreateSerializer
+from .models import Trip, TripNote, TripChecklist, ChecklistItem, TripExpense, TripPhoto, TripShare, TripCollaborator, SavedPlace
+from .serializers import (
+    TripSerializer, TripListSerializer, TripCreateSerializer,
+    TripNoteSerializer, TripChecklistSerializer, ChecklistItemSerializer,
+    TripExpenseSerializer, TripPhotoSerializer, TripShareSerializer,
+    TripCollaboratorSerializer, SavedPlaceSerializer,
+)
 from itineraries.models import Itinerary, ItineraryItem
 from itineraries.serializers import ItinerarySerializer
 from ai_engine.scoring import ScoringEngine
@@ -588,3 +593,289 @@ class DestinationRecommendationView(APIView):
         from trips.recommendation_service import get_destination_recommendations
         data = get_destination_recommendations(city)
         return Response(data)
+
+
+# ═══════════ Trip Notes ═══════════
+
+class TripNoteListCreateView(generics.ListCreateAPIView):
+    """List/create notes for a trip."""
+    serializer_class = TripNoteSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        return TripNote.objects.filter(trip_id=self.kwargs['trip_id'])
+
+    def perform_create(self, serializer):
+        serializer.save(trip_id=self.kwargs['trip_id'])
+
+
+class TripNoteDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = TripNoteSerializer
+    permission_classes = [permissions.AllowAny]
+    lookup_field = 'id'
+
+    def get_queryset(self):
+        return TripNote.objects.all()
+
+
+# ═══════════ Checklists ═══════════
+
+class TripChecklistListCreateView(generics.ListCreateAPIView):
+    serializer_class = TripChecklistSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        return TripChecklist.objects.filter(trip_id=self.kwargs['trip_id']).prefetch_related('items')
+
+    def perform_create(self, serializer):
+        cl = serializer.save(trip_id=self.kwargs['trip_id'])
+        # Create default packing items if it's a packing list
+        if 'packing' in cl.title.lower():
+            defaults = [
+                'Passport / ID', 'Phone charger', 'Clothes for {days} days',
+                'Toiletries', 'Medications', 'Travel adapter', 'Sunscreen',
+                'Comfortable shoes', 'Reusable water bottle', 'Snacks',
+            ]
+            for i, text in enumerate(defaults):
+                text = text.replace('{days}', str(cl.trip.duration_days))
+                ChecklistItem.objects.create(checklist=cl, text=text, order=i)
+
+
+class ChecklistItemCreateView(generics.CreateAPIView):
+    serializer_class = ChecklistItemSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def perform_create(self, serializer):
+        serializer.save(checklist_id=self.kwargs['checklist_id'])
+
+
+class ChecklistItemUpdateView(generics.UpdateAPIView):
+    serializer_class = ChecklistItemSerializer
+    permission_classes = [permissions.AllowAny]
+    lookup_field = 'id'
+    queryset = ChecklistItem.objects.all()
+
+
+class ChecklistItemDeleteView(generics.DestroyAPIView):
+    permission_classes = [permissions.AllowAny]
+    lookup_field = 'id'
+    queryset = ChecklistItem.objects.all()
+
+
+class ChecklistToggleAllView(APIView):
+    """Toggle all items checked/unchecked."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, checklist_id):
+        items = ChecklistItem.objects.filter(checklist_id=checklist_id)
+        all_checked = all(i.checked for i in items)
+        items.update(checked=not all_checked)
+        return Response({'checked': not all_checked, 'count': items.count()})
+
+
+# ═══════════ Expenses ═══════════
+
+class TripExpenseListCreateView(generics.ListCreateAPIView):
+    serializer_class = TripExpenseSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        return TripExpense.objects.filter(trip_id=self.kwargs['trip_id'])
+
+    def perform_create(self, serializer):
+        expense = serializer.save(trip_id=self.kwargs['trip_id'])
+        # Update budget_spent on trip
+        trip = Trip.objects.get(id=self.kwargs['trip_id'])
+        from django.db.models import Sum
+        total = trip.expenses.aggregate(Sum('amount_usd'))['amount_usd__sum'] or 0
+        trip.budget_spent_usd = total
+        trip.save(update_fields=['budget_spent_usd'])
+
+
+class TripExpenseDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = TripExpenseSerializer
+    permission_classes = [permissions.AllowAny]
+    lookup_field = 'id'
+    queryset = TripExpense.objects.all()
+
+    def perform_destroy(self, instance):
+        trip = instance.trip
+        instance.delete()
+        from django.db.models import Sum
+        total = trip.expenses.aggregate(Sum('amount_usd'))['amount_usd__sum'] or 0
+        trip.budget_spent_usd = total
+        trip.save(update_fields=['budget_spent_usd'])
+
+
+class TripExpenseSummaryView(APIView):
+    """Aggregated expense summary."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, trip_id):
+        from django.db.models import Sum
+        trip = Trip.objects.get(id=trip_id)
+        expenses = TripExpense.objects.filter(trip_id=trip_id)
+        total = expenses.aggregate(Sum('amount_usd'))['amount_usd__sum'] or 0
+
+        by_category = {}
+        for cat, label in TripExpense.CATEGORY_CHOICES:
+            cat_total = expenses.filter(category=cat).aggregate(Sum('amount_usd'))['amount_usd__sum'] or 0
+            by_category[cat] = {'label': label, 'amount': float(cat_total)}
+
+        by_day = {}
+        for exp in expenses:
+            day = exp.day_number or 0
+            by_day.setdefault(day, 0)
+            by_day[day] += float(exp.amount_usd)
+
+        days = trip.duration_days or 1
+        return Response({
+            'total_spent': float(total),
+            'budget_usd': float(trip.budget_usd),
+            'remaining': float(trip.budget_usd) - float(total),
+            'by_category': by_category,
+            'by_day': by_day,
+            'daily_average': round(float(total) / days, 2),
+        })
+
+
+# ═══════════ Photos ═══════════
+
+class TripPhotoListCreateView(generics.ListCreateAPIView):
+    serializer_class = TripPhotoSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        return TripPhoto.objects.filter(trip_id=self.kwargs['trip_id'])
+
+    def perform_create(self, serializer):
+        serializer.save(trip_id=self.kwargs['trip_id'])
+
+
+class TripPhotoDeleteView(generics.DestroyAPIView):
+    permission_classes = [permissions.AllowAny]
+    lookup_field = 'id'
+    queryset = TripPhoto.objects.all()
+
+
+# ═══════════ Trip Sharing ═══════════
+
+class TripShareCreateView(APIView):
+    """Create a shareable link for a trip."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, trip_id):
+        import secrets
+        trip = Trip.objects.get(id=trip_id)
+        permission = request.data.get('permission', 'view')
+        share = TripShare.objects.create(
+            trip=trip,
+            share_code=secrets.token_urlsafe(16),
+            permission=permission,
+            created_by=request.user if request.user.is_authenticated else None,
+        )
+        return Response(TripShareSerializer(share).data, status=status.HTTP_201_CREATED)
+
+
+class SharedTripView(APIView):
+    """Public endpoint to view a shared trip via share code."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, share_code):
+        try:
+            share = TripShare.objects.get(share_code=share_code, is_active=True)
+        except TripShare.DoesNotExist:
+            return Response({'error': 'Share link not found or expired'}, status=404)
+
+        trip = share.trip
+        itinerary = trip.itineraries.filter(is_active=True).first()
+        itinerary_data = ItinerarySerializer(itinerary).data if itinerary else None
+        photos = TripPhotoSerializer(trip.photos.all(), many=True).data
+        notes = TripNoteSerializer(trip.notes.all(), many=True).data if share.permission != 'view' else []
+
+        return Response({
+            'trip': TripSerializer(trip).data,
+            'itinerary': itinerary_data,
+            'photos': photos,
+            'notes': notes,
+            'permission': share.permission,
+        })
+
+
+# ═══════════ Saved Places (Wishlist) ═══════════
+
+class SavedPlaceListCreateView(generics.ListCreateAPIView):
+    serializer_class = SavedPlaceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return SavedPlace.objects.filter(user=self.request.user).select_related('place')
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class SavedPlaceDeleteView(generics.DestroyAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = 'id'
+
+    def get_queryset(self):
+        return SavedPlace.objects.filter(user=self.request.user)
+
+
+# ═══════════ Explore — Popular Destinations ═══════════
+
+class ExploreDestinationsView(APIView):
+    """Return curated destination data for the Explore page."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from django.db.models import Count, Avg
+
+        category = request.query_params.get('category', '')
+        search = request.query_params.get('q', '').strip()
+
+        cities = Place.objects.values('city', 'country').annotate(
+            place_count=Count('id'),
+            avg_rating=Avg('rating'),
+        ).filter(place_count__gte=3).order_by('-avg_rating')
+
+        if search:
+            cities = cities.filter(city__icontains=search)
+
+        if category:
+            cities = Place.objects.filter(category=category).values('city', 'country').annotate(
+                place_count=Count('id'),
+                avg_rating=Avg('rating'),
+            ).filter(place_count__gte=1).order_by('-avg_rating')
+
+        results = []
+        for c in cities[:30]:
+            # Get top categories for this city
+            cats = (
+                Place.objects.filter(city=c['city'])
+                .values('category')
+                .annotate(count=Count('id'))
+                .order_by('-count')[:4]
+            )
+            cat_list = [cat['category'] for cat in cats]
+
+            # Get a representative image
+            img_place = Place.objects.filter(city=c['city'], image_url__isnull=False).exclude(image_url='').first()
+            image_url = img_place.image_url if img_place else None
+
+            # Estimate budget range
+            avg_cost = Place.objects.filter(city=c['city']).aggregate(Avg('avg_cost_usd'))['avg_cost_usd__avg'] or 30
+            daily_budget = float(avg_cost) * 4  # rough: 4 activities per day
+
+            results.append({
+                'city': c['city'],
+                'country': c['country'],
+                'place_count': c['place_count'],
+                'avg_rating': round(c['avg_rating'], 1),
+                'categories': cat_list,
+                'image_url': image_url,
+                'daily_budget_usd': round(daily_budget, 0),
+            })
+
+        return Response({'destinations': results})

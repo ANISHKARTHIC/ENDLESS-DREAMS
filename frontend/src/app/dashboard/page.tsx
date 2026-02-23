@@ -9,8 +9,9 @@ import { TripGenerationForm } from "@/components/trip/trip-generation-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import type { TripGenerateRequest, Trip } from "@/types";
-import { Sparkles, MapPin, Calendar, Plane, ArrowRight, Settings2, Globe } from "lucide-react";
+import { Sparkles, MapPin, Calendar, Plane, ArrowRight, Settings2, Globe, Users, DollarSign, Clock } from "lucide-react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -126,37 +127,52 @@ export default function DashboardPage() {
                       </p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {recentTrips.slice(0, 6).map((trip) => (
-                        <div
+                        <Link
                           key={trip.id}
-                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition group border border-border/50"
+                          href={`/trip/${trip.id}`}
+                          className="group rounded-2xl border border-border/50 overflow-hidden hover:shadow-lg hover:border-primary/20 transition-all duration-300"
                         >
-                          <Link href={`/trip/${trip.id}`} className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                              <MapPin className="h-4 w-4 text-primary" />
+                          {/* Cover image or gradient */}
+                          <div className="h-32 bg-gradient-to-br from-primary/20 via-accent/10 to-primary/5 relative overflow-hidden">
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Globe className="h-12 w-12 text-primary/20" />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">
-                                {trip.destination_city}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {trip.duration_days} days &middot; $
+                            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-card to-transparent h-12" />
+                            {/* Status badge */}
+                            <div className="absolute top-3 right-3">
+                              <span className={cn(
+                                "px-2 py-0.5 rounded-full text-[10px] font-medium",
+                                trip.status === "active" ? "bg-emerald-500/20 text-emerald-400" :
+                                trip.status === "completed" ? "bg-blue-500/20 text-blue-400" :
+                                "bg-muted text-muted-foreground"
+                              )}>
+                                {trip.status}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="p-4">
+                            <h3 className="font-semibold text-foreground group-hover:text-primary transition">
+                              {trip.destination_city}
+                            </h3>
+                            <p className="text-xs text-muted-foreground mt-0.5">{trip.destination_country}</p>
+                            <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {trip.duration_days}d
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                {trip.group_size}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <DollarSign className="h-3 w-3" />
                                 {trip.budget_usd}
-                              </p>
+                              </span>
                             </div>
-                          </Link>
-                          <Link
-                            href={`/trip/${trip.id}`}
-                            className="p-1.5 rounded-lg hover:bg-primary/10 transition opacity-0 group-hover:opacity-100"
-                            title="Customize trip"
-                          >
-                            <Settings2 className="h-3.5 w-3.5 text-primary" />
-                          </Link>
-                          <Link href={`/trip/${trip.id}`}>
-                            <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
-                          </Link>
-                        </div>
+                          </div>
+                        </Link>
                       ))}
                     </div>
                   )}

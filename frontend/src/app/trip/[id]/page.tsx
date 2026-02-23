@@ -36,6 +36,11 @@ import Link from "next/link";
 import { TripCustomizer } from "@/components/trip/trip-customizer";
 import { TransportInfoCard } from "@/components/trip/transport-info";
 import { DestinationRecommendations } from "@/components/trip/destination-recommendations";
+import { TripNotes } from "@/components/trip/trip-notes";
+import { TripChecklists } from "@/components/trip/trip-checklists";
+import { TripExpenses } from "@/components/trip/trip-expenses";
+import { TripPhotos } from "@/components/trip/trip-photos";
+import { ShareDialog } from "@/components/trip/share-dialog";
 import { useCurrency } from "@/contexts/currency-context";
 import {
   Calendar,
@@ -54,6 +59,11 @@ import {
   Navigation,
   CalendarCheck,
   TrendingUp,
+  StickyNote,
+  DollarSign,
+  ListChecks,
+  Camera,
+  Share2,
 } from "lucide-react";
 
 export default function TripDetailPage() {
@@ -69,10 +79,11 @@ export default function TripDetailPage() {
   const [bookingInsights, setBookingInsights] = useState<BookingInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<number | undefined>();
-  const [activeTab, setActiveTab] = useState<"itinerary" | "map" | "recommendations" | "events">(
+  const [activeTab, setActiveTab] = useState<"itinerary" | "map" | "recommendations" | "events" | "notes" | "budget" | "checklist" | "photos">(
     "itinerary"
   );
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const { convert, symbol } = useCurrency();
 
   // Determine if trip is happening today
@@ -317,33 +328,46 @@ export default function TripDetailPage() {
           </motion.div>
 
           {/* Tab navigation */}
-          <div className="flex items-center gap-1 mb-6 p-1 rounded-xl bg-muted/50 w-fit">
-            {(
-              [
-                { key: "itinerary", label: "Itinerary", icon: Activity },
-                { key: "map", label: "Map", icon: MapPin },
-                { key: "recommendations", label: "Insights", icon: TrendingUp },
-                { key: "events", label: "Events", icon: RefreshCw },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activeTab === tab.key
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <tab.icon className="h-4 w-4" />
-                {tab.label}
-                {tab.key === "events" && events.length > 0 && (
-                  <span className="ml-1 h-5 w-5 rounded-full bg-warning/20 text-warning text-xs flex items-center justify-center">
-                    {events.length}
-                  </span>
-                )}
-              </button>
-            ))}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-muted/50 overflow-x-auto scrollbar-hide">
+              {(
+                [
+                  { key: "itinerary", label: "Itinerary", icon: Activity },
+                  { key: "map", label: "Map", icon: MapPin },
+                  { key: "notes", label: "Notes", icon: StickyNote },
+                  { key: "budget", label: "Budget", icon: DollarSign },
+                  { key: "checklist", label: "Checklist", icon: ListChecks },
+                  { key: "photos", label: "Photos", icon: Camera },
+                  { key: "recommendations", label: "Insights", icon: TrendingUp },
+                  { key: "events", label: "Events", icon: RefreshCw },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                    activeTab === tab.key
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <tab.icon className="h-4 w-4" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  {tab.key === "events" && events.length > 0 && (
+                    <span className="ml-1 h-5 w-5 rounded-full bg-warning/20 text-warning text-xs flex items-center justify-center">
+                      {events.length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setIsShareOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 ml-2 rounded-xl text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition shrink-0"
+            >
+              <Share2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Share</span>
+            </button>
           </div>
 
           <div className="grid lg:grid-cols-3 gap-8">
@@ -425,6 +449,22 @@ export default function TripDetailPage() {
 
               {activeTab === "events" && (
                 <ReplanEventsPanel events={events} />
+              )}
+
+              {activeTab === "notes" && (
+                <TripNotes tripId={tripId} />
+              )}
+
+              {activeTab === "budget" && (
+                <TripExpenses tripId={tripId} budgetUsd={Number(trip.budget_usd)} />
+              )}
+
+              {activeTab === "checklist" && (
+                <TripChecklists tripId={tripId} />
+              )}
+
+              {activeTab === "photos" && (
+                <TripPhotos tripId={tripId} />
               )}
             </div>
 
@@ -616,6 +656,16 @@ export default function TripDetailPage() {
           onItineraryUpdate={(updatedItinerary) => {
             setItinerary(updatedItinerary);
           }}
+        />
+      )}
+
+      {/* Share Dialog */}
+      {trip && (
+        <ShareDialog
+          tripId={tripId}
+          tripName={trip.destination_city}
+          isOpen={isShareOpen}
+          onClose={() => setIsShareOpen(false)}
         />
       )}
 

@@ -14,10 +14,16 @@ import {
   LayoutDashboard,
   Sparkles,
   ChevronDown,
+  Compass,
+  User,
+  LogOut,
+  Bookmark,
+  Settings,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/contexts/currency-context";
+import { AuthModal } from "@/components/auth/auth-modal";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -25,14 +31,29 @@ export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const { currency, setCurrency, rates } = useCurrency();
 
   useEffect(() => {
     setMounted(true);
+    // Check if user is logged in
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    setIsLoggedIn(!!token);
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    setIsLoggedIn(false);
+    setUserMenuOpen(false);
+    window.location.href = "/";
+  };
 
   const links = [
     { href: "/", label: "Home" },
+    { href: "/explore", label: "Explore", icon: Compass },
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   ];
 
@@ -149,6 +170,64 @@ export function Navbar() {
                 </Link>
               </div>
 
+              {/* User avatar / login */}
+              <div className="relative hidden md:block">
+                {isLoggedIn ? (
+                  <>
+                    <button
+                      onClick={() => setUserMenuOpen(!userMenuOpen)}
+                      className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary hover:bg-primary/30 transition border border-primary/20"
+                    >
+                      <User className="h-4 w-4" />
+                    </button>
+                    <AnimatePresence>
+                      {userMenuOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                          className="absolute right-0 top-full mt-1 w-44 glass rounded-xl border border-border/50 shadow-xl overflow-hidden z-50"
+                        >
+                          <div className="p-1">
+                            <Link
+                              href="/profile"
+                              onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition"
+                            >
+                              <User className="h-3.5 w-3.5" />
+                              Profile
+                            </Link>
+                            <Link
+                              href="/profile#saved"
+                              onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition"
+                            >
+                              <Bookmark className="h-3.5 w-3.5" />
+                              Saved Places
+                            </Link>
+                            <hr className="my-1 border-border/50" />
+                            <button
+                              onClick={handleLogout}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-500/10 transition"
+                            >
+                              <LogOut className="h-3.5 w-3.5" />
+                              Sign Out
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setAuthOpen(true)}
+                    className="px-3 py-1.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition border border-border/50"
+                  >
+                    Sign In
+                  </button>
+                )}
+              </div>
+
               {/* Mobile menu */}
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
@@ -208,10 +287,46 @@ export function Navbar() {
                   Plan a Trip
                 </Button>
               </Link>
+
+              {/* Mobile auth */}
+              {isLoggedIn ? (
+                <div className="space-y-1 mt-2 pt-2 border-t border-border/50">
+                  <Link
+                    href="/profile"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition"
+                  >
+                    Profile
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-500/10 transition"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setAuthOpen(true); setMenuOpen(false); }}
+                  className="w-full mt-2 px-4 py-2.5 rounded-xl text-sm font-medium text-primary hover:bg-primary/10 transition border border-primary/30"
+                >
+                  Sign In / Sign Up
+                </button>
+              )}
             </nav>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={authOpen}
+        onClose={() => setAuthOpen(false)}
+        onSuccess={() => {
+          setIsLoggedIn(true);
+          setAuthOpen(false);
+        }}
+      />
     </header>
   );
 }

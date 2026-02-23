@@ -333,6 +333,143 @@ class ApiClient {
       { method: 'POST' }
     );
   }
+
+  // ──── Notes ────
+  async getTripNotes(tripId: string) {
+    return this.request<import('@/types').TripNote[]>(`/trips/${tripId}/notes/`);
+  }
+
+  async createNote(tripId: string, data: { title?: string; content?: string; color?: string; day_number?: number }) {
+    return this.request<import('@/types').TripNote>(`/trips/${tripId}/notes/`, {
+      method: 'POST', body: JSON.stringify(data),
+    });
+  }
+
+  async updateNote(noteId: string, data: Partial<import('@/types').TripNote>) {
+    return this.request<import('@/types').TripNote>(`/notes/${noteId}/`, {
+      method: 'PATCH', body: JSON.stringify(data),
+    });
+  }
+
+  async deleteNote(noteId: string) {
+    return this.request(`/notes/${noteId}/`, { method: 'DELETE' });
+  }
+
+  // ──── Checklists ────
+  async getTripChecklists(tripId: string) {
+    return this.request<import('@/types').TripChecklist[]>(`/trips/${tripId}/checklists/`);
+  }
+
+  async createChecklist(tripId: string, data: { title: string; icon?: string }) {
+    return this.request<import('@/types').TripChecklist>(`/trips/${tripId}/checklists/`, {
+      method: 'POST', body: JSON.stringify(data),
+    });
+  }
+
+  async addChecklistItem(checklistId: string, data: { text: string; order?: number }) {
+    return this.request<import('@/types').ChecklistItem>(`/checklists/${checklistId}/items/`, {
+      method: 'POST', body: JSON.stringify(data),
+    });
+  }
+
+  async updateChecklistItem(itemId: string, data: { text?: string; checked?: boolean; order?: number }) {
+    return this.request<import('@/types').ChecklistItem>(`/checklist-items/${itemId}/`, {
+      method: 'PATCH', body: JSON.stringify(data),
+    });
+  }
+
+  async deleteChecklistItem(itemId: string) {
+    return this.request(`/checklist-items/${itemId}/delete/`, { method: 'DELETE' });
+  }
+
+  async toggleAllChecklistItems(checklistId: string) {
+    return this.request<{ checked: boolean; count: number }>(`/checklists/${checklistId}/toggle-all/`, {
+      method: 'POST',
+    });
+  }
+
+  // ──── Expenses ────
+  async getTripExpenses(tripId: string) {
+    return this.request<import('@/types').TripExpense[]>(`/trips/${tripId}/expenses/`);
+  }
+
+  async createExpense(tripId: string, data: { title: string; amount_usd: number; category?: string; day_number?: number; notes?: string; paid_by?: string }) {
+    return this.request<import('@/types').TripExpense>(`/trips/${tripId}/expenses/`, {
+      method: 'POST', body: JSON.stringify(data),
+    });
+  }
+
+  async deleteExpense(expenseId: string) {
+    return this.request(`/expenses/${expenseId}/`, { method: 'DELETE' });
+  }
+
+  async getExpenseSummary(tripId: string) {
+    return this.request<import('@/types').ExpenseSummary>(`/trips/${tripId}/expenses/summary/`);
+  }
+
+  // ──── Photos ────
+  async getTripPhotos(tripId: string) {
+    return this.request<import('@/types').TripPhoto[]>(`/trips/${tripId}/photos/`);
+  }
+
+  async addPhoto(tripId: string, data: { image_url: string; caption?: string; day_number?: number; place_name?: string }) {
+    return this.request<import('@/types').TripPhoto>(`/trips/${tripId}/photos/`, {
+      method: 'POST', body: JSON.stringify(data),
+    });
+  }
+
+  async deletePhoto(photoId: string) {
+    return this.request(`/photos/${photoId}/`, { method: 'DELETE' });
+  }
+
+  // ──── Sharing ────
+  async createShareLink(tripId: string, permission: string = 'view') {
+    return this.request<import('@/types').TripShare>(`/trips/${tripId}/share/`, {
+      method: 'POST', body: JSON.stringify({ permission }),
+    });
+  }
+
+  async getSharedTrip(shareCode: string) {
+    return this.request<{
+      trip: Trip;
+      itinerary: import('@/types').Itinerary | null;
+      photos: import('@/types').TripPhoto[];
+      notes: import('@/types').TripNote[];
+      permission: string;
+    }>(`/shared/${shareCode}/`);
+  }
+
+  // ──── Saved Places ────
+  async getSavedPlaces() {
+    return this.request<import('@/types').SavedPlace[]>('/saved-places/');
+  }
+
+  async savePlace(placeId: string, tripId?: string, notes?: string) {
+    return this.request<import('@/types').SavedPlace>('/saved-places/', {
+      method: 'POST', body: JSON.stringify({ place: placeId, trip: tripId, notes }),
+    });
+  }
+
+  async removeSavedPlace(savedId: string) {
+    return this.request(`/saved-places/${savedId}/`, { method: 'DELETE' });
+  }
+
+  // ──── Explore ────
+  async getExploreDestinations(params?: { q?: string; category?: string }) {
+    const query = new URLSearchParams(params as Record<string, string>).toString();
+    return this.request<{ destinations: import('@/types').ExploreDestination[] }>(`/explore/?${query}`);
+  }
+
+  // ──── User Profile ────
+  async getProfile() {
+    return this.request<import('@/types').User>('/user/profile/');
+  }
+
+  async updateProfile(data: Partial<import('@/types').User>) {
+    return this.request<import('@/types').User>('/user/profile/', {
+      method: 'PUT', body: JSON.stringify(data),
+    });
+  }
 }
 
 export const api = new ApiClient();

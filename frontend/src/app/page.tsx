@@ -20,6 +20,13 @@ import {
   Zap,
   MapPin,
   Plane,
+  StickyNote,
+  ListChecks,
+  DollarSign,
+  Camera,
+  Share2,
+  Compass,
+  Users,
 } from "lucide-react";
 
 /* ── Hero carousel slides ── */
@@ -392,6 +399,112 @@ export default function LandingPage() {
                     </div>
                   </div>
                 </Link>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════ Plan Your Way — new features ═══════════ */}
+      <section className="py-24 px-4 bg-muted/30">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <p className="text-xs tracking-[0.2em] uppercase text-muted-foreground mb-3">
+              Everything You Need
+            </p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground">
+              Plan Your Way
+            </h2>
+            <p className="mt-3 text-muted-foreground max-w-lg mx-auto">
+              Everything you need to plan, organize, and share your perfect trip — all in one place
+            </p>
+          </motion.div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[
+              {
+                icon: StickyNote,
+                title: "Trip Notes",
+                description: "Jot down ideas, save restaurant names, or write travel journals. Color-coded and pinnable.",
+                color: "text-amber-500 bg-amber-500/10",
+              },
+              {
+                icon: ListChecks,
+                title: "Packing Lists & Checklists",
+                description: "Never forget essentials. Create custom checklists with auto-generated packing suggestions.",
+                color: "text-emerald-500 bg-emerald-500/10",
+              },
+              {
+                icon: DollarSign,
+                title: "Budget Tracker",
+                description: "Track expenses by category. See daily averages, spending breakdowns, and budget remaining.",
+                color: "text-blue-500 bg-blue-500/10",
+              },
+              {
+                icon: Camera,
+                title: "Photo Gallery",
+                description: "Capture memories with a beautiful photo gallery. Organize by place and day.",
+                color: "text-pink-500 bg-pink-500/10",
+              },
+              {
+                icon: Share2,
+                title: "Share & Collaborate",
+                description: "Share your trip with a link. Set view, comment, or edit permissions for collaborators.",
+                color: "text-purple-500 bg-purple-500/10",
+              },
+              {
+                icon: Compass,
+                title: "Explore Destinations",
+                description: "Browse curated city guides with top-rated places, categories, and budget estimates.",
+                color: "text-cyan-500 bg-cyan-500/10",
+              },
+            ].map((feature, idx) => (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: idx * 0.06 }}
+                className="p-6 rounded-2xl border border-border bg-card hover:shadow-lg transition-all duration-300 group"
+              >
+                <div className={`h-11 w-11 rounded-xl flex items-center justify-center mb-4 ${feature.color}`}>
+                  <feature.icon className="h-5 w-5" />
+                </div>
+                <h3 className="font-semibold text-foreground mb-2">
+                  {feature.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {feature.description}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════ Social Proof ═══════════ */}
+      <section className="py-20 px-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-8 text-center">
+            {[
+              { value: "100+", label: "Destinations Worldwide" },
+              { value: "AI-Powered", label: "Smart Itineraries" },
+              { value: "Real-time", label: "Dynamic Replanning" },
+            ].map((stat, idx) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: idx * 0.1 }}
+              >
+                <p className="text-4xl sm:text-5xl font-bold text-foreground mb-2">{stat.value}</p>
+                <p className="text-sm text-muted-foreground">{stat.label}</p>
               </motion.div>
             ))}
           </div>

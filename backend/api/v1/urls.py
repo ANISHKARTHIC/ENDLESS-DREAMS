@@ -3,7 +3,26 @@ from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from users.views import RegisterView, ProfileView, PreferencesView, LogoutView
-from trips.views import TripListView, TripDetailView, TripGenerateView, TripHealthView, AccommodationView, BookingInsightsView, TripCustomizeView, TripAIChatView, DestinationRecommendationView
+from trips.views import (
+    TripListView, TripDetailView, TripGenerateView, TripHealthView,
+    AccommodationView, BookingInsightsView, TripCustomizeView, TripAIChatView,
+    DestinationRecommendationView,
+    # Notes
+    TripNoteListCreateView, TripNoteDetailView,
+    # Checklists
+    TripChecklistListCreateView, ChecklistItemCreateView,
+    ChecklistItemUpdateView, ChecklistItemDeleteView, ChecklistToggleAllView,
+    # Expenses
+    TripExpenseListCreateView, TripExpenseDetailView, TripExpenseSummaryView,
+    # Photos
+    TripPhotoListCreateView, TripPhotoDeleteView,
+    # Sharing
+    TripShareCreateView, SharedTripView,
+    # Saved Places
+    SavedPlaceListCreateView, SavedPlaceDeleteView,
+    # Explore
+    ExploreDestinationsView,
+)
 from itineraries.views import (
     ItineraryDetailView, ItineraryByTripView, ActiveItineraryView,
     ItineraryItemUpdateView, ItineraryReorderView, ItineraryItemLockView,
@@ -33,6 +52,37 @@ urlpatterns = [
     path('trips/<uuid:trip_id>/booking-insights/', BookingInsightsView.as_view(), name='trip-booking-insights'),
     path('trips/<uuid:trip_id>/customize/', TripCustomizeView.as_view(), name='trip-customize'),
     path('trips/<uuid:trip_id>/ai-chat/', TripAIChatView.as_view(), name='trip-ai-chat'),
+
+    # Trip Notes
+    path('trips/<uuid:trip_id>/notes/', TripNoteListCreateView.as_view(), name='trip-notes'),
+    path('notes/<uuid:id>/', TripNoteDetailView.as_view(), name='note-detail'),
+
+    # Trip Checklists
+    path('trips/<uuid:trip_id>/checklists/', TripChecklistListCreateView.as_view(), name='trip-checklists'),
+    path('checklists/<uuid:checklist_id>/items/', ChecklistItemCreateView.as_view(), name='checklist-item-create'),
+    path('checklist-items/<uuid:id>/', ChecklistItemUpdateView.as_view(), name='checklist-item-update'),
+    path('checklist-items/<uuid:id>/delete/', ChecklistItemDeleteView.as_view(), name='checklist-item-delete'),
+    path('checklists/<uuid:checklist_id>/toggle-all/', ChecklistToggleAllView.as_view(), name='checklist-toggle-all'),
+
+    # Trip Expenses
+    path('trips/<uuid:trip_id>/expenses/', TripExpenseListCreateView.as_view(), name='trip-expenses'),
+    path('expenses/<uuid:id>/', TripExpenseDetailView.as_view(), name='expense-detail'),
+    path('trips/<uuid:trip_id>/expenses/summary/', TripExpenseSummaryView.as_view(), name='expense-summary'),
+
+    # Trip Photos
+    path('trips/<uuid:trip_id>/photos/', TripPhotoListCreateView.as_view(), name='trip-photos'),
+    path('photos/<uuid:id>/', TripPhotoDeleteView.as_view(), name='photo-delete'),
+
+    # Sharing
+    path('trips/<uuid:trip_id>/share/', TripShareCreateView.as_view(), name='trip-share'),
+    path('shared/<str:share_code>/', SharedTripView.as_view(), name='shared-trip'),
+
+    # Saved Places (Wishlist)
+    path('saved-places/', SavedPlaceListCreateView.as_view(), name='saved-places'),
+    path('saved-places/<uuid:id>/', SavedPlaceDeleteView.as_view(), name='saved-place-delete'),
+
+    # Explore
+    path('explore/', ExploreDestinationsView.as_view(), name='explore'),
 
     # Itineraries
     path('itineraries/<uuid:id>/', ItineraryDetailView.as_view(), name='itinerary-detail'),

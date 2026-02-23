@@ -322,3 +322,126 @@ export interface TripGenerateResponse {
   accommodation: Accommodation[];
   booking_insights: BookingInsights;
 }
+
+/* ──── Notes ──── */
+
+export interface TripNote {
+  id: string;
+  trip: string;
+  title: string;
+  content: string;
+  color: 'default' | 'blue' | 'green' | 'yellow' | 'pink' | 'purple';
+  pinned: boolean;
+  day_number: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/* ──── Checklists ──── */
+
+export interface ChecklistItem {
+  id: string;
+  checklist: string;
+  text: string;
+  checked: boolean;
+  order: number;
+  created_at: string;
+}
+
+export interface TripChecklist {
+  id: string;
+  trip: string;
+  title: string;
+  icon: string;
+  items: ChecklistItem[];
+  progress: { total: number; checked: number; percentage: number };
+  created_at: string;
+}
+
+/* ──── Expenses ──── */
+
+export interface TripExpense {
+  id: string;
+  trip: string;
+  title: string;
+  amount_usd: number | string;
+  category: 'food' | 'transport' | 'accommodation' | 'activities' | 'shopping' | 'other';
+  day_number: number | null;
+  notes: string;
+  paid_by: string;
+  created_at: string;
+}
+
+export interface ExpenseSummary {
+  total_spent: number;
+  budget_usd: number;
+  remaining: number;
+  by_category: Record<string, { label: string; amount: number }>;
+  by_day: Record<number, number>;
+  daily_average: number;
+}
+
+/* ──── Photos ──── */
+
+export interface TripPhoto {
+  id: string;
+  trip: string;
+  image_url: string;
+  caption: string;
+  day_number: number | null;
+  place_name: string;
+  uploaded_at: string;
+}
+
+/* ──── Sharing ──── */
+
+export interface TripShare {
+  id: string;
+  trip: string;
+  share_code: string;
+  permission: 'view' | 'comment' | 'edit';
+  is_active: boolean;
+  share_url: string;
+  created_at: string;
+  expires_at: string | null;
+}
+
+/* ──── Saved Places ──── */
+
+export interface SavedPlace {
+  id: string;
+  user: string;
+  place: string;
+  trip: string | null;
+  notes: string;
+  place_name: string;
+  place_city: string;
+  place_category: string;
+  place_image: string | null;
+  place_rating: number;
+  created_at: string;
+}
+
+/* ──── Explore ──── */
+
+export interface ExploreDestination {
+  city: string;
+  country: string;
+  place_count: number;
+  avg_rating: number;
+  categories: string[];
+  image_url: string | null;
+  daily_budget_usd: number;
+}
+
+/* ──── Auth ──── */
+
+export interface AuthTokens {
+  access: string;
+  refresh: string;
+}
+
+export interface RegisterResponse {
+  user: User;
+  tokens: AuthTokens;
+}
