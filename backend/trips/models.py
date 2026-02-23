@@ -17,6 +17,14 @@ class Trip(models.Model):
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
     ]
+    STAY_TYPE_CHOICES = [
+        ('hotel', 'Hotel'),
+        ('hostel', 'Hostel'),
+        ('resort', 'Resort'),
+        ('airbnb', 'Airbnb'),
+        ('boutique', 'Boutique'),
+        ('any', 'Any'),
+    ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
@@ -35,6 +43,8 @@ class Trip(models.Model):
     budget_usd = models.DecimalField(max_digits=10, decimal_places=2)
     budget_spent_usd = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     pace = models.CharField(max_length=20, choices=PACE_CHOICES, default='moderate')
+    stay_type = models.CharField(max_length=20, choices=STAY_TYPE_CHOICES, default='any',
+                                  help_text='Preferred accommodation type')
     group_size = models.IntegerField(default=1)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
 

@@ -11,7 +11,8 @@ class TripCreateSerializer(serializers.ModelSerializer):
         model = Trip
         fields = [
             'departure_city', 'destination_city', 'destination_country',
-            'start_date', 'end_date', 'budget_usd', 'pace', 'group_size',
+            'start_date', 'end_date', 'budget_usd', 'pace', 'stay_type',
+            'group_size',
             'interest_culture', 'interest_nature', 'interest_food',
             'interest_adventure', 'interest_relaxation',
             'travel_option_id',
@@ -37,7 +38,7 @@ class TripSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'departure_city', 'destination_city', 'destination_country',
             'start_date', 'end_date', 'budget_usd', 'budget_spent_usd',
-            'pace', 'group_size', 'status',
+            'pace', 'stay_type', 'group_size', 'status',
             'interest_culture', 'interest_nature', 'interest_food',
             'interest_adventure', 'interest_relaxation',
             'stability_index', 'risk_exposure',
@@ -77,6 +78,6 @@ class TripListSerializer(serializers.ModelSerializer):
         model = Trip
         fields = [
             'id', 'title', 'departure_city', 'destination_city', 'destination_country',
-            'start_date', 'end_date', 'status', 'stability_index',
+            'start_date', 'end_date', 'stay_type', 'status', 'stability_index',
             'duration_days', 'budget_usage_ratio', 'created_at',
         ]

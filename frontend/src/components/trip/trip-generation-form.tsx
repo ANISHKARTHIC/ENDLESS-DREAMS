@@ -18,6 +18,7 @@ import {
   Globe,
   Navigation,
   Route,
+  Building2,
 } from "lucide-react";
 import { TravelComparison } from "@/components/trip/travel-comparison";
 import { InteractiveGlobe } from "@/components/globe/interactive-globe";
@@ -37,6 +38,15 @@ const PACE_OPTIONS = [
   { value: "fast", label: "Fast", description: "5-7 activities/day, packed schedule" },
 ];
 
+const STAY_TYPE_OPTIONS = [
+  { value: "any", label: "Any" },
+  { value: "hotel", label: "Hotel" },
+  { value: "hostel", label: "Hostel" },
+  { value: "resort", label: "Resort" },
+  { value: "airbnb", label: "Airbnb" },
+  { value: "boutique", label: "Boutique" },
+];
+
 export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormProps) {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<TripGenerateRequest>({
@@ -47,6 +57,7 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
     end_date: "",
     budget_usd: 2000,
     pace: "moderate",
+    stay_type: "any",
     group_size: 1,
     interest_culture: 0.5,
     interest_nature: 0.5,
@@ -427,6 +438,32 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
                   +
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Stay type preference */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              <span className="flex items-center gap-1.5">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                Accommodation Preference
+              </span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {STAY_TYPE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => updateForm({ stay_type: opt.value as TripGenerateRequest["stay_type"] })}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                    form.stay_type === opt.value
+                      ? "border-primary bg-primary/10 text-primary shadow-sm shadow-primary/10"
+                      : "border-border text-muted-foreground hover:border-primary/30"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
         </motion.div>

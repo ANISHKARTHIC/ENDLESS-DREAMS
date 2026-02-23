@@ -29,6 +29,7 @@ export interface Trip {
   budget_usd: string | number;
   budget_spent_usd: string | number;
   pace: 'relaxed' | 'moderate' | 'fast';
+  stay_type: 'hotel' | 'hostel' | 'resort' | 'airbnb' | 'boutique' | 'any';
   group_size: number;
   status: 'draft' | 'active' | 'completed' | 'cancelled';
   interest_culture: number;
@@ -66,6 +67,7 @@ export interface TripGenerateRequest {
   end_date: string;
   budget_usd: number;
   pace?: 'relaxed' | 'moderate' | 'fast';
+  stay_type?: 'hotel' | 'hostel' | 'resort' | 'airbnb' | 'boutique' | 'any';
   group_size?: number;
   interest_culture?: number;
   interest_nature?: number;
@@ -236,4 +238,87 @@ export interface WSMessage {
   type: 'replan_notification' | 'weather_update' | 'health_update' | 'ai_response' | 'itinerary_update' | 'connection_established';
   data?: Record<string, unknown>;
   message?: string;
+}
+
+/* ──── Accommodation Types ──── */
+
+export interface Accommodation {
+  name: string;
+  type: 'hotel' | 'hostel' | 'resort' | 'airbnb' | 'boutique';
+  stars: number;
+  price_per_night_usd: number;
+  total_cost_usd: number;
+  rating: number;
+  amenities: string[];
+  image_url: string;
+  description: string;
+  distance_to_attractions_km: number;
+  travel_time_saved_pct: number;
+  optimization_score: number;
+  is_recommended: boolean;
+  is_mock: boolean;
+}
+
+/* ──── Booking Insights Types ──── */
+
+export interface PriceAlert {
+  type: 'activity_deal' | 'accommodation_pricing' | 'crowd_insight';
+  severity: 'low' | 'medium' | 'high';
+  title: string;
+  description: string;
+  expires_in_hours: number | null;
+  potential_savings_usd: number;
+  action: string;
+}
+
+export interface DailyBudget {
+  total_budget_usd: number;
+  accommodation_cost_usd: number;
+  travel_cost_usd: number;
+  remaining_for_activities_usd: number;
+  daily_activity_budget_usd: number;
+  breakdown: {
+    meals: number;
+    attractions: number;
+    transport: number;
+    miscellaneous: number;
+  };
+}
+
+export interface BookingWindow {
+  day: number;
+  date: string;
+  avg_activity_cost_usd: number;
+  price_trend: 'rising' | 'stable' | 'falling';
+  confidence_pct: number;
+  recommendation: string;
+}
+
+export interface CostForecast {
+  day: number;
+  predicted_cost_usd: number;
+  cumulative_usd: number;
+  budget_remaining_usd: number;
+  on_track: boolean;
+}
+
+export interface SavingsTip {
+  category: string;
+  tip: string;
+}
+
+export interface BookingInsights {
+  price_alerts: PriceAlert[];
+  daily_budget: DailyBudget;
+  savings_tips: SavingsTip[];
+  booking_windows: BookingWindow[];
+  cost_forecast: CostForecast[];
+  is_mock: boolean;
+}
+
+export interface TripGenerateResponse {
+  trip: Trip;
+  itinerary: Itinerary;
+  accommodation: Accommodation[];
+  booking_insights: BookingInsights;
 }

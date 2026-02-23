@@ -2,12 +2,15 @@
 import type {
   Trip,
   TripGenerateRequest,
+  TripGenerateResponse,
   Itinerary,
   Place,
   TripHealth,
   WeatherData,
   WeatherForecast,
   ReplanEvent,
+  Accommodation,
+  BookingInsights,
 } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
@@ -164,7 +167,7 @@ class ApiClient {
 
   // Trips
   async generateTrip(data: TripGenerateRequest) {
-    return this.request<{ trip: Trip; itinerary: Itinerary }>('/trips/generate/', {
+    return this.request<TripGenerateResponse>('/trips/generate/', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -253,6 +256,16 @@ class ApiClient {
     return this.request<{ original_amount: number; from: string; to: string; converted_amount: number }>(
       `/travel/currency/convert/?amount=${amount}&from=${from}&to=${to}`
     );
+  }
+
+  // Accommodation
+  async getAccommodation(tripId: string) {
+    return this.request<{ results: Accommodation[] }>(`/trips/${tripId}/accommodation/`);
+  }
+
+  // Booking Insights
+  async getBookingInsights(tripId: string) {
+    return this.request<BookingInsights>(`/trips/${tripId}/booking-insights/`);
   }
 }
 

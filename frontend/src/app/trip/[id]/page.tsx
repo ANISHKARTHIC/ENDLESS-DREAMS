@@ -11,6 +11,8 @@ import { WeatherOverlay } from "@/components/trip/weather-overlay";
 import { ReplanEventsPanel } from "@/components/trip/replan-events";
 import { BudgetProgress } from "@/components/ui/progress";
 import { TripMap } from "@/components/map/trip-map";
+import { AccommodationCard } from "@/components/trip/accommodation-card";
+import { BookingInsightsPanel } from "@/components/trip/booking-insights";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +29,8 @@ import type {
   TripHealth,
   WeatherData,
   ReplanEvent,
+  Accommodation,
+  BookingInsights,
 } from "@/types";
 import Link from "next/link";
 import {
@@ -53,6 +57,8 @@ export default function TripDetailPage() {
   const [health, setHealth] = useState<TripHealth | null>(null);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [events, setEvents] = useState<ReplanEvent[]>([]);
+  const [accommodation, setAccommodation] = useState<Accommodation[]>([]);
+  const [bookingInsights, setBookingInsights] = useState<BookingInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<number | undefined>();
   const [activeTab, setActiveTab] = useState<"itinerary" | "map" | "events">(
@@ -71,11 +77,15 @@ export default function TripDetailPage() {
       api.getActiveItinerary(tripId).catch(() => null),
       api.getTripHealth(tripId).catch(() => null),
       api.getReplanEvents(tripId).catch(() => ({ results: [] })),
-    ]).then(([tripData, itineraryData, healthData, eventsData]) => {
+      api.getAccommodation(tripId).catch(() => ({ results: [] })),
+      api.getBookingInsights(tripId).catch(() => null),
+    ]).then(([tripData, itineraryData, healthData, eventsData, accomData, insightsData]) => {
       setTrip(tripData);
       setItinerary(itineraryData);
       setHealth(healthData);
       setEvents(eventsData.results || []);
+      setAccommodation(accomData.results || []);
+      setBookingInsights(insightsData);
       setLoading(false);
 
       // Fetch weather for this city
@@ -372,6 +382,16 @@ export default function TripDetailPage() {
 
             {/* Sidebar */}
             <div className="space-y-6">
+              {/* Accommodation */}
+              {accommodation.length > 0 && (
+                <AccommodationCard accommodations={accommodation} />
+              )}
+
+              {/* Booking Insights */}
+              {bookingInsights && (
+                <BookingInsightsPanel insights={bookingInsights} />
+              )}
+
               {/* Health details */}
               {health && (
                 <motion.div
