@@ -71,16 +71,18 @@ export function Progress({
 }
 
 interface BudgetProgressProps {
-  spent: number;
-  total: number;
+  spent: string | number;
+  total: string | number;
   currency?: string;
 }
 
 export function BudgetProgress({
-  spent,
-  total,
+  spent: spentRaw,
+  total: totalRaw,
   currency = "$",
 }: BudgetProgressProps) {
+  const spent = Number(spentRaw);
+  const total = Number(totalRaw);
   const percentage = (spent / total) * 100;
   const variant =
     percentage > 90 ? "danger" : percentage > 70 ? "warning" : "gradient";

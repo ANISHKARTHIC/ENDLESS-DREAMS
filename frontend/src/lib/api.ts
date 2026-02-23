@@ -14,11 +14,11 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1
 
 class ApiClient {
   private baseUrl: string;
-  private sessionId: string;
+  private isRefreshing = false;
+  private refreshPromise: Promise<string> | null = null;
 
   constructor() {
     this.baseUrl = API_URL;
-    this.sessionId = this.getOrCreateSessionId();
   }
 
   private getOrCreateSessionId(): string {
@@ -31,25 +31,98 @@ class ApiClient {
     return id;
   }
 
-  private getHeaders(): HeadersInit {
+  private getHeaders(token?: string): HeadersInit {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
-      'X-Session-Id': this.sessionId,
+      'X-Session-Id': this.getOrCreateSessionId(),
     };
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('access_token');
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+    const accessToken = token ?? (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null);
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
     }
     return headers;
   }
 
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  private async refreshAccessToken(): Promise<string> {
+    // Deduplicate concurrent refresh calls
+    if (this.isRefreshing && this.refreshPromise) {
+      return this.refreshPromise;
+    }
+    this.isRefreshing = true;
+    this.refreshPromise = (async () => {
+      const refresh = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null;
+      if (!refresh) throw new Error('No refresh token available');
+
+      const response = await fetch(`${this.baseUrl}/auth/refresh/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh }),
+      });
+
+      if (!response.ok) {
+        // Refresh token itself is expired – clear everything
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+        }
+        throw new Error('Session expired. Please log in again.');
+      }
+
+      const data = await response.json();
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('access_token', data.access);
+        // simplejwt returns a new refresh token when ROTATE_REFRESH_TOKENS=True
+        if (data.refresh) {
+          localStorage.setItem('refresh_token', data.refresh);
+        }
+      }
+      return data.access as string;
+    })();
+
+    try {
+      return await this.refreshPromise;
+    } finally {
+      this.isRefreshing = false;
+      this.refreshPromise = null;
+    }
+  }
+
+  private async request<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...options,
       headers: { ...this.getHeaders(), ...options.headers },
     });
+
+    if (response.status === 401 && retry) {
+      const hasRefresh = typeof window !== 'undefined' && !!localStorage.getItem('refresh_token');
+      const hadAccessToken = typeof window !== 'undefined' && !!localStorage.getItem('access_token');
+
+      if (hasRefresh) {
+        try {
+          const newToken = await this.refreshAccessToken();
+          // Retry with the fresh token
+          const retryResponse = await fetch(`${this.baseUrl}${path}`, {
+            ...options,
+            headers: { ...this.getHeaders(newToken), ...options.headers },
+          });
+          if (!retryResponse.ok) {
+            const error = await retryResponse.json().catch(() => ({ detail: 'Request failed' }));
+            throw new Error(error.detail || error.error || JSON.stringify(error));
+          }
+          return retryResponse.json();
+        } catch {
+          // Refresh failed; tokens already cleared by refreshAccessToken()
+        }
+      } else if (hadAccessToken) {
+        // Stale access token with no refresh token – discard it
+        localStorage.removeItem('access_token');
+      }
+
+      // If we had a token but it's now gone, retry anonymously so AllowAny endpoints succeed.
+      if (hadAccessToken && typeof window !== 'undefined' && !localStorage.getItem('access_token')) {
+        return this.request<T>(path, options, false);
+      }
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Request failed' }));

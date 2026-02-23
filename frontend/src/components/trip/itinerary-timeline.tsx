@@ -105,8 +105,8 @@ export function ItineraryTimeline({
     <div className="space-y-8">
       {days.map((day, dayIdx) => {
         const dayItems = dayGroups[day.toString()] || [];
-        const totalCost = dayItems.reduce((s, i) => s + i.estimated_cost_usd, 0);
-        const totalDuration = dayItems.reduce((s, i) => s + i.duration_minutes, 0);
+        const totalCost = dayItems.reduce((s, i) => s + Number(i.estimated_cost_usd), 0);
+        const totalDuration = dayItems.reduce((s, i) => s + Number(i.duration_minutes), 0);
 
         return (
           <motion.div
