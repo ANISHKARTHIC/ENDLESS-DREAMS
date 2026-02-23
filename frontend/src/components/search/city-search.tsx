@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, MapPin, X, Globe, Star, Database } from "lucide-react";
+import { Search, MapPin, X, Globe, Star } from "lucide-react";
 import { searchCities, REGIONS, WORLD_CITIES, type WorldCity } from "@/data/world-cities";
 import { api } from "@/lib/api";
 
@@ -44,7 +44,7 @@ export function CitySearch({ value, onChange, placeholder = "Search any city wor
     }).catch(() => {});
   }, []);
 
-  const allCities = [...WORLD_CITIES, ...dbCities];
+  const allCities = useMemo(() => [...WORLD_CITIES, ...dbCities], [dbCities]);
 
   const doSearch = useCallback((q: string, region: string | null) => {
     let filtered: WorldCity[];
@@ -79,6 +79,34 @@ export function CitySearch({ value, onChange, placeholder = "Search any city wor
     setResults(filtered.slice(0, 16));
     setHighlightIndex(-1);
   }, [excludeCities, dbCities, allCities]);
+
+  // Also search backend for cities not in local data
+  useEffect(() => {
+    if (!query.trim() || query.trim().length < 2) return;
+    const timer = setTimeout(() => {
+      api.getDestinationCities(query.trim()).then((res) => {
+        setResults((prev) => {
+          const existingKeys = new Set(prev.map(c => c.city.toLowerCase()));
+          const extra: WorldCity[] = res.cities
+            .filter((c) => !existingKeys.has(c.city.toLowerCase()))
+            .map((c) => ({
+              city: c.city,
+              country: c.country,
+              countryCode: "",
+              emoji: "\uD83D\uDCCD",
+              lat: c.lat,
+              lng: c.lng,
+              description: `${c.place_count} places to explore`,
+              region: "Asia" as const,
+              popular: c.place_count >= 8,
+            }));
+          if (extra.length === 0) return prev;
+          return [...prev, ...extra].slice(0, 20);
+        });
+      }).catch(() => {});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   useEffect(() => {
     doSearch(query, activeRegion);

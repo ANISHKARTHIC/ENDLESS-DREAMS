@@ -98,7 +98,7 @@ export function DestinationPreviewMap({
           zoom: center.zoom,
         }}
         style={{ width: "100%", height: "100%" }}
-        mapStyle="mapbox://styles/mapbox/dark-v11"
+        mapStyle="mapbox://styles/mapbox/streets-v12"
         mapboxAccessToken={MAPBOX_TOKEN}
         interactive={true}
         attributionControl={false}
