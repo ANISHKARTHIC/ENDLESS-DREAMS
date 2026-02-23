@@ -267,6 +267,26 @@ class ApiClient {
   async getBookingInsights(tripId: string) {
     return this.request<BookingInsights>(`/trips/${tripId}/booking-insights/`);
   }
+
+  // AI Customizer
+  async customizeTrip(tripId: string, data: { message?: string; action?: string }) {
+    return this.request<{
+      message: string;
+      changes: string[];
+      modification: Record<string, unknown>;
+      itinerary: Itinerary;
+    }>(`/trips/${tripId}/customize/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async aiChat(tripId: string, message: string) {
+    return this.request<{ message: string }>(`/trips/${tripId}/ai-chat/`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    });
+  }
 }
 
 export const api = new ApiClient();

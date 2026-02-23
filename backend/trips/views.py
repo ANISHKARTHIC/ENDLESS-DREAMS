@@ -1,4 +1,5 @@
 """Trip API views."""
+import json
 import time
 import uuid
 from rest_framework import generics, permissions, status
@@ -11,6 +12,7 @@ from itineraries.serializers import ItinerarySerializer
 from ai_engine.scoring import ScoringEngine
 from ai_engine.optimizer import RouteOptimizer
 from ai_engine.health import TripHealthCalculator
+from ai_engine.llm_layer import LLMLayer
 from places.models import Place
 from services.accommodation_service import AccommodationService
 from services.booking_insights_service import BookingInsightsService
@@ -275,3 +277,250 @@ class BookingInsightsView(APIView):
             num_activities=items_count,
         )
         return Response(insights)
+
+
+class TripCustomizeView(APIView):
+    """AI-powered trip customizer — modify itinerary using natural language."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, trip_id):
+        try:
+            trip = Trip.objects.get(id=trip_id)
+        except Trip.DoesNotExist:
+            return Response({'error': 'Trip not found'}, status=404)
+
+        message = request.data.get('message', '').strip()
+        action = request.data.get('action')  # optional quick-action
+
+        if not message and not action:
+            return Response({'error': 'Please provide a message or action.'}, status=400)
+
+        itinerary = trip.itineraries.filter(is_active=True).first()
+        if not itinerary:
+            return Response({'error': 'No active itinerary to customize.'}, status=404)
+
+        # Build current itinerary context
+        items = list(
+            ItineraryItem.objects.filter(itinerary=itinerary)
+            .select_related('place')
+            .order_by('day_number', 'order')
+        )
+        itinerary_context = []
+        for item in items:
+            itinerary_context.append({
+                'id': str(item.id),
+                'day': item.day_number,
+                'order': item.order,
+                'place_name': item.place.name if item.place else 'Unknown',
+                'category': item.place.category if item.place else '',
+                'start_time': str(item.start_time),
+                'end_time': str(item.end_time),
+                'cost_usd': float(item.estimated_cost_usd),
+                'is_locked': item.is_locked,
+            })
+
+        trip_context = {
+            'destination': trip.destination_city,
+            'country': trip.destination_country,
+            'days': trip.duration_days,
+            'budget_usd': float(trip.budget_usd),
+            'pace': trip.pace,
+            'interests': {
+                'culture': trip.interest_culture,
+                'nature': trip.interest_nature,
+                'food': trip.interest_food,
+                'adventure': trip.interest_adventure,
+                'relaxation': trip.interest_relaxation,
+            },
+            'itinerary': itinerary_context,
+        }
+
+        llm = LLMLayer()
+
+        # Handle quick actions
+        if action:
+            action_prompts = {
+                'more_food': f"Add more food and dining experiences to my {trip.destination_city} trip. Replace some lower-rated activities with popular local food spots.",
+                'more_adventure': f"Make my {trip.destination_city} trip more adventurous. Swap relaxation or shopping activities for adventure and outdoor experiences.",
+                'budget_friendly': f"Make my {trip.destination_city} trip more budget-friendly. Replace expensive activities with free or cheap alternatives.",
+                'more_culture': f"Add more cultural experiences to my {trip.destination_city} trip. Include museums, temples, historical sites.",
+                'more_relaxation': f"Make my {trip.destination_city} trip more relaxing. Replace rushed activities with leisure, spa, beach or park experiences.",
+                'optimize_route': f"Optimize the route order of my {trip.destination_city} itinerary so nearby places are visited together, minimizing travel time.",
+                'add_nightlife': f"Add nightlife and evening entertainment to my {trip.destination_city} trip.",
+                'local_hidden_gems': f"Replace some tourist spots with local hidden gems and off-the-beaten-path experiences in {trip.destination_city}.",
+            }
+            message = action_prompts.get(action, message or f"Customize my {trip.destination_city} trip: {action}")
+
+        # Step 1: Interpret the modification intent via AI
+        modification = llm.interpret_modification(message)
+
+        # Step 2: Apply the modification intelligently
+        changes_made = []
+        available_places = Place.objects.filter(city__iexact=trip.destination_city)
+
+        mod_action = modification.get('action', 'unknown')
+
+        if mod_action == 'swap' and modification.get('target_place'):
+            # Swap a specific place
+            target = modification['target_place'].lower()
+            replacement_cat = modification.get('replacement_category')
+            item_to_swap = None
+            for item in items:
+                if item.place and target in item.place.name.lower():
+                    item_to_swap = item
+                    break
+
+            if item_to_swap:
+                existing_ids = [i.place_id for i in items]
+                candidates = available_places.exclude(id__in=existing_ids)
+                if replacement_cat:
+                    candidates = candidates.filter(category=replacement_cat)
+                replacement = candidates.order_by('-popularity_score').first()
+                if replacement:
+                    old_name = item_to_swap.place.name
+                    item_to_swap.place = replacement
+                    item_to_swap.estimated_cost_usd = replacement.avg_cost_usd
+                    item_to_swap.duration_minutes = replacement.avg_duration_minutes
+                    item_to_swap.save()
+                    changes_made.append(f"Swapped '{old_name}' with '{replacement.name}'")
+
+        elif mod_action == 'add':
+            # Add a new place
+            existing_ids = [i.place_id for i in items]
+            candidates = available_places.exclude(id__in=existing_ids)
+            cat = modification.get('replacement_category')
+            if cat:
+                candidates = candidates.filter(category=cat)
+            new_place = candidates.order_by('-popularity_score').first()
+            if new_place:
+                max_day = max(i.day_number for i in items) if items else 1
+                target_day = modification.get('target_day') or max_day
+                max_order = max((i.order for i in items if i.day_number == target_day), default=0)
+                ItineraryItem.objects.create(
+                    itinerary=itinerary,
+                    place=new_place,
+                    day_number=target_day,
+                    order=max_order + 1,
+                    start_time='14:00',
+                    end_time='16:00',
+                    duration_minutes=new_place.avg_duration_minutes,
+                    estimated_cost_usd=new_place.avg_cost_usd,
+                    score=new_place.popularity_score * 10,
+                )
+                changes_made.append(f"Added '{new_place.name}' to Day {target_day}")
+
+        elif mod_action == 'remove' and modification.get('target_place'):
+            target = modification['target_place'].lower()
+            for item in items:
+                if item.place and target in item.place.name.lower() and not item.is_locked:
+                    changes_made.append(f"Removed '{item.place.name}' from Day {item.day_number}")
+                    item.delete()
+                    break
+
+        elif mod_action in ('extend', 'shorten'):
+            # Change duration of a place
+            target = (modification.get('target_place') or '').lower()
+            for item in items:
+                if item.place and (not target or target in item.place.name.lower()):
+                    old_dur = item.duration_minutes
+                    if mod_action == 'extend':
+                        item.duration_minutes = min(old_dur + 60, 480)
+                    else:
+                        item.duration_minutes = max(old_dur - 30, 30)
+                    item.save()
+                    changes_made.append(f"Changed '{item.place.name}' duration from {old_dur} to {item.duration_minutes} min")
+                    break
+
+        # If no structural changes, try a broad category-based swap
+        if not changes_made:
+            cat = modification.get('replacement_category')
+            if cat:
+                existing_ids = [i.place_id for i in items]
+                # Find the lowest-scored unlocked item not of the desired category
+                worst = None
+                for item in sorted(items, key=lambda x: float(x.score)):
+                    if not item.is_locked and item.place and item.place.category != cat:
+                        worst = item
+                        break
+                replacement = (
+                    available_places.exclude(id__in=existing_ids)
+                    .filter(category=cat)
+                    .order_by('-popularity_score')
+                    .first()
+                )
+                if worst and replacement:
+                    old_name = worst.place.name
+                    worst.place = replacement
+                    worst.estimated_cost_usd = replacement.avg_cost_usd
+                    worst.duration_minutes = replacement.avg_duration_minutes
+                    worst.save()
+                    changes_made.append(f"Replaced '{old_name}' with '{replacement.name}' ({cat})")
+
+        # Step 3: Generate AI response
+        if changes_made:
+            changes_text = "; ".join(changes_made)
+            ai_response = llm.chat_response(
+                f"I just made these changes to the user's {trip.destination_city} trip: {changes_text}. "
+                f"Explain the changes positively and suggest what else they can customize.",
+                trip_context,
+            )
+        else:
+            ai_response = llm.chat_response(
+                f"The user asked: '{message}' about their {trip.destination_city} trip. "
+                f"I couldn't make automatic changes. Suggest what modifications are possible based on the trip context.",
+                trip_context,
+            )
+
+        # Refetch updated itinerary
+        updated_itinerary = ItinerarySerializer(itinerary).data
+
+        return Response({
+            'message': ai_response,
+            'changes': changes_made,
+            'modification': modification,
+            'itinerary': updated_itinerary,
+        })
+
+
+class TripAIChatView(APIView):
+    """General AI chat about a trip — advice, suggestions, questions."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, trip_id):
+        try:
+            trip = Trip.objects.get(id=trip_id)
+        except Trip.DoesNotExist:
+            return Response({'error': 'Trip not found'}, status=404)
+
+        message = request.data.get('message', '').strip()
+        if not message:
+            return Response({'error': 'Please provide a message.'}, status=400)
+
+        # Build trip context
+        itinerary = trip.itineraries.filter(is_active=True).first()
+        items_list = []
+        if itinerary:
+            items = ItineraryItem.objects.filter(itinerary=itinerary).select_related('place').order_by('day_number', 'order')
+            items_list = [
+                {
+                    'day': i.day_number,
+                    'place': i.place.name if i.place else 'Unknown',
+                    'category': i.place.category if i.place else '',
+                    'cost': float(i.estimated_cost_usd),
+                }
+                for i in items
+            ]
+
+        trip_context = {
+            'destination': trip.destination_city,
+            'country': trip.destination_country,
+            'days': trip.duration_days,
+            'budget_usd': float(trip.budget_usd),
+            'pace': trip.pace,
+            'group_size': trip.group_size,
+            'itinerary': items_list,
+        }
+
+        llm = LLMLayer()
+        response_text = llm.chat_response(message, trip_context)
+        return Response({'message': response_text})

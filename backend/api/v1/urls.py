@@ -3,7 +3,7 @@ from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from users.views import RegisterView, ProfileView, PreferencesView, LogoutView
-from trips.views import TripListView, TripDetailView, TripGenerateView, TripHealthView, AccommodationView, BookingInsightsView
+from trips.views import TripListView, TripDetailView, TripGenerateView, TripHealthView, AccommodationView, BookingInsightsView, TripCustomizeView, TripAIChatView
 from itineraries.views import (
     ItineraryDetailView, ItineraryByTripView, ActiveItineraryView,
     ItineraryItemUpdateView, ItineraryReorderView, ItineraryItemLockView,
@@ -30,6 +30,8 @@ urlpatterns = [
     path('trips/<uuid:trip_id>/health/', TripHealthView.as_view(), name='trip-health'),
     path('trips/<uuid:trip_id>/accommodation/', AccommodationView.as_view(), name='trip-accommodation'),
     path('trips/<uuid:trip_id>/booking-insights/', BookingInsightsView.as_view(), name='trip-booking-insights'),
+    path('trips/<uuid:trip_id>/customize/', TripCustomizeView.as_view(), name='trip-customize'),
+    path('trips/<uuid:trip_id>/ai-chat/', TripAIChatView.as_view(), name='trip-ai-chat'),
 
     # Itineraries
     path('itineraries/<uuid:id>/', ItineraryDetailView.as_view(), name='itinerary-detail'),

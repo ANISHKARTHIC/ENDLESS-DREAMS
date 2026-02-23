@@ -693,10 +693,13 @@ PLACES_DATA = [
 
 def seed():
     """Seed the database with places."""
+    from seed.places_extended import EXTENDED_PLACES_DATA
+
+    all_places = PLACES_DATA + EXTENDED_PLACES_DATA
     created = 0
     updated = 0
 
-    for data in PLACES_DATA:
+    for data in all_places:
         opening = data.pop('opening_hour', None)
         closing = data.pop('closing_hour', None)
 

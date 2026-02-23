@@ -33,6 +33,7 @@ import type {
   BookingInsights,
 } from "@/types";
 import Link from "next/link";
+import { TripCustomizer } from "@/components/trip/trip-customizer";
 import {
   Calendar,
   MapPin,
@@ -64,6 +65,7 @@ export default function TripDetailPage() {
   const [activeTab, setActiveTab] = useState<"itinerary" | "map" | "events">(
     "itinerary"
   );
+  const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
 
   // WebSocket for real-time updates
   const { lastMessage, isConnected } = useWebSocket(tripId);
@@ -235,12 +237,14 @@ export default function TripDetailPage() {
                 {health && <StabilityBadge health={health} />}
                 {weather && <WeatherOverlay weather={weather} compact />}
                 {/* Customize Button */}
-                <Link href="/dashboard">
-                  <Button variant="outline" className="border-primary/30 hover:border-primary/50 hover:bg-primary/5 text-primary">
-                    <Settings2 className="h-4 w-4 mr-1.5" />
-                    Customize
-                  </Button>
-                </Link>
+                <Button
+                  variant="outline"
+                  className="border-primary/30 hover:border-primary/50 hover:bg-primary/5 text-primary"
+                  onClick={() => setIsCustomizerOpen(true)}
+                >
+                  <Settings2 className="h-4 w-4 mr-1.5" />
+                  Customize
+                </Button>
               </div>
             </div>
 
@@ -509,6 +513,19 @@ export default function TripDetailPage() {
           </div>
         </div>
       </main>
+
+      {/* AI Customizer Panel */}
+      {trip && (
+        <TripCustomizer
+          tripId={tripId}
+          destination={trip.destination_city}
+          isOpen={isCustomizerOpen}
+          onClose={() => setIsCustomizerOpen(false)}
+          onItineraryUpdate={(updatedItinerary) => {
+            setItinerary(updatedItinerary);
+          }}
+        />
+      )}
 
       <Footer />
     </div>
