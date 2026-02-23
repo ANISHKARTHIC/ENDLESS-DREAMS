@@ -1,3 +1,9 @@
+# Secrets / credentials
+client_secret*.json
+credentials*.json
+service_account*.json
+*_secret*.json
+
 # Dependencies
 backend/node_modules/
 venv/
