@@ -375,7 +375,8 @@ export default function TripDetailPage() {
                 <TripMap
                   items={allItems}
                   selectedDay={selectedDay}
-                  className="min-h-[500px]"
+                  onDaySelect={setSelectedDay}
+                  className="min-h-[600px]"
                 />
               )}
 
@@ -519,6 +520,7 @@ export default function TripDetailPage() {
         <TripCustomizer
           tripId={tripId}
           destination={trip.destination_city}
+          items={allItems}
           isOpen={isCustomizerOpen}
           onClose={() => setIsCustomizerOpen(false)}
           onItineraryUpdate={(updatedItinerary) => {

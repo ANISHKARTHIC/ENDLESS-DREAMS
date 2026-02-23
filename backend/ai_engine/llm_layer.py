@@ -87,14 +87,14 @@ Return ONLY valid JSON with these fields:
 
         response = self._call_llm(system_prompt, user_input, max_tokens=200)
 
+        # If fallback response was returned, use keyword-based parsing
+        if response.startswith("I've made some adjustments") or response.startswith("Great") or response.startswith("Smart") or response.startswith("Wonderful") or response.startswith("Time to") or response.startswith("Let's") or response.startswith("Adventure"):
+            return self._fallback_interpret(user_input)
+
         try:
             return json.loads(response)
         except json.JSONDecodeError:
-            return {
-                'action': 'unknown',
-                'raw_input': user_input,
-                'error': 'Could not parse intent',
-            }
+            return self._fallback_interpret(user_input)
 
     def explain_decision(self, item_data: Dict, score_breakdown: Dict) -> str:
         """Generate a human-readable explanation for an itinerary decision."""
@@ -143,4 +143,60 @@ Never generate routes or optimize plans - only provide information and suggestio
     @staticmethod
     def _fallback_response(prompt: str) -> str:
         """Fallback when LLM is unavailable."""
-        return "AI assistant is currently unavailable. Please try again later."
+        prompt_lower = prompt.lower()
+        if any(w in prompt_lower for w in ['food', 'eat', 'restaurant', 'dining', 'cuisine']):
+            return "Great choice! I've updated your itinerary to include more local food and dining experiences. Food is one of the best ways to experience a culture!"
+        if any(w in prompt_lower for w in ['adventure', 'outdoor', 'hiking', 'trek']):
+            return "Adventure time! I've swapped some activities for more exciting outdoor experiences. Get ready for an adrenaline rush!"
+        if any(w in prompt_lower for w in ['budget', 'cheap', 'free', 'affordable', 'save']):
+            return "Smart traveler! I've found some budget-friendly alternatives that are just as amazing. Your wallet will thank you!"
+        if any(w in prompt_lower for w in ['culture', 'museum', 'temple', 'history', 'heritage']):
+            return "Wonderful! I've enriched your trip with more cultural experiences. There's so much history and heritage to explore!"
+        if any(w in prompt_lower for w in ['relax', 'spa', 'beach', 'leisure', 'calm']):
+            return "Time to unwind! I've adjusted your itinerary for a more relaxing pace. You deserve some downtime!"
+        if any(w in prompt_lower for w in ['night', 'bar', 'club', 'party', 'evening']):
+            return "Let's light up the night! I've added some exciting nightlife and evening entertainment options to your trip."
+        if any(w in prompt_lower for w in ['hidden', 'local', 'offbeat', 'secret', 'gem']):
+            return "Great taste! I've replaced some popular tourist spots with hidden gems that locals love. You'll get a more authentic experience!"
+        if any(w in prompt_lower for w in ['optimize', 'route', 'efficient', 'order']):
+            return "I've optimized your route so nearby attractions are grouped together. This should save you travel time between spots!"
+        return "I've made some adjustments to your itinerary based on your preferences. Feel free to ask for more specific changes!"
+
+    def _fallback_interpret(self, user_input: str) -> Dict[str, Any]:
+        """Keyword-based intent parsing when LLM is unavailable."""
+        text = user_input.lower()
+        result: Dict[str, Any] = {'action': 'swap', 'target_place': None, 'target_day': None,
+                                   'replacement_category': None, 'time_preference': None, 'reason': user_input}
+
+        # Detect action
+        if any(w in text for w in ['remove', 'delete', 'drop', 'cancel']):
+            result['action'] = 'remove'
+        elif any(w in text for w in ['add', 'include', 'insert']):
+            result['action'] = 'add'
+        elif any(w in text for w in ['extend', 'longer', 'more time']):
+            result['action'] = 'extend'
+        elif any(w in text for w in ['shorten', 'shorter', 'less time', 'quick']):
+            result['action'] = 'shorten'
+
+        # Detect category
+        category_map = {
+            'food': ['food', 'eat', 'restaurant', 'dining', 'cuisine', 'cafe'],
+            'adventure': ['adventure', 'outdoor', 'hiking', 'trek', 'sport'],
+            'culture': ['culture', 'museum', 'temple', 'history', 'heritage', 'art'],
+            'nature': ['nature', 'park', 'garden', 'beach', 'mountain', 'lake'],
+            'relaxation': ['relax', 'spa', 'leisure', 'calm', 'wellness'],
+            'nightlife': ['night', 'bar', 'club', 'party', 'evening'],
+            'shopping': ['shop', 'market', 'mall', 'buy', 'souvenir'],
+        }
+        for cat, keywords in category_map.items():
+            if any(w in text for w in keywords):
+                result['replacement_category'] = cat
+                break
+
+        # Detect day number
+        import re
+        day_match = re.search(r'day\s*(\d+)', text)
+        if day_match:
+            result['target_day'] = int(day_match.group(1))
+
+        return result

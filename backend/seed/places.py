@@ -694,8 +694,9 @@ PLACES_DATA = [
 def seed():
     """Seed the database with places."""
     from seed.places_extended import EXTENDED_PLACES_DATA
+    from seed.places_india import INDIA_PLACES_DATA
 
-    all_places = PLACES_DATA + EXTENDED_PLACES_DATA
+    all_places = PLACES_DATA + EXTENDED_PLACES_DATA + INDIA_PLACES_DATA
     created = 0
     updated = 0
 
