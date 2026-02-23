@@ -18,17 +18,31 @@ interface CitySearchProps {
 
 /** Search Mapbox Geocoding API for cities matching query */
 async function searchMapboxCities(query: string): Promise<WorldCity[]> {
-  if (!MAPBOX_TOKEN || !query.trim()) return [];
+  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+  if (!token || !query.trim()) return [];
   try {
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&types=place&limit=8&language=en`;
+    // Use autocomplete, include localities, and search globally
+    const params = new URLSearchParams({
+      access_token: token,
+      types: "place,locality,region",
+      limit: "10",
+      language: "en",
+      autocomplete: "true",
+    });
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?${params}`;
     const res = await fetch(url);
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.warn("Mapbox geocoding failed:", res.status);
+      return [];
+    }
     const data = await res.json();
     return (data.features || []).map((f: Record<string, unknown>) => {
       const coords = (f.geometry as { coordinates: number[] })?.coordinates || [0, 0];
       const context = (f.context as { id: string; text: string }[]) || [];
       const country = context.find((c) => c.id.startsWith("country"))?.text || "";
       const region = context.find((c) => c.id.startsWith("region"))?.text || "";
+      const placeType = (f.place_type as string[]) || [];
+      
       return {
         city: f.text as string,
         country: country,
@@ -36,12 +50,13 @@ async function searchMapboxCities(query: string): Promise<WorldCity[]> {
         emoji: "",
         lat: coords[1],
         lng: coords[0],
-        description: region || country,
-        region: "Asia" as const,
-        popular: false,
+        description: region || country || (f.place_name as string)?.split(",").slice(1).join(",").trim() || "",
+        region: "Asia" as const, // Default region for display purposes
+        popular: placeType.includes("place"),
       };
     });
-  } catch {
+  } catch (err) {
+    console.warn("Mapbox geocoding error:", err);
     return [];
   }
 }
@@ -130,13 +145,13 @@ export function CitySearch({ value, onChange, placeholder = "Search any city wor
 
         setResults((prev) => {
           const existingKeys = new Set(prev.map(c => c.city.toLowerCase()));
-          const extra: WorldCity[] = [];
+          const combined: WorldCity[] = [...prev];
 
-          // Add DB results
+          // Add DB results first (they have itinerary data)
           for (const c of dbRes.cities) {
             if (!existingKeys.has(c.city.toLowerCase())) {
               existingKeys.add(c.city.toLowerCase());
-              extra.push({
+              combined.push({
                 city: c.city,
                 country: c.country,
                 countryCode: "",
@@ -154,12 +169,17 @@ export function CitySearch({ value, onChange, placeholder = "Search any city wor
           for (const c of mapboxResults) {
             if (!existingKeys.has(c.city.toLowerCase())) {
               existingKeys.add(c.city.toLowerCase());
-              extra.push(c);
+              combined.push(c);
             }
           }
 
-          if (extra.length === 0) return prev;
-          return [...prev, ...extra].slice(0, 24);
+          // If we only have Mapbox results (no local/DB matches), use them
+          if (prev.length === 0 && combined.length > 0) {
+            return combined.slice(0, 24);
+          }
+          
+          // Otherwise merge and limit
+          return combined.slice(0, 24);
         });
       } finally {
         setIsSearching(false);

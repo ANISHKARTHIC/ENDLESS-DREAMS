@@ -28,6 +28,7 @@ import { CitySearch } from "@/components/search/city-search";
 import { getCityData, type WorldCity } from "@/data/world-cities";
 import { useCurrency } from "@/contexts/currency-context";
 import { api } from "@/lib/api";
+import { type RouteInfo } from "@/lib/mapbox";
 import type { TripGenerateRequest, TravelOption, TravelSearchResponse } from "@/types";
 
 interface TripGenerationFormProps {
@@ -86,6 +87,17 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
   const [travelLoading, setTravelLoading] = useState(false);
   const [selectedTravel, setSelectedTravel] = useState<TravelOption | null>(null);
 
+  // Route info from Mapbox Directions API
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+
+  // Store selected city objects with coordinates (for map preview)
+  const [selectedDestCity, setSelectedDestCity] = useState<WorldCity | null>(null);
+  const [selectedDepCity, setSelectedDepCity] = useState<WorldCity | null>(null);
+
+  const handleRouteLoad = useCallback((info: RouteInfo) => {
+    setRouteInfo(info);
+  }, []);
+
   const updateForm = (updates: Partial<TripGenerateRequest>) => {
     setForm((prev) => ({ ...prev, ...updates }));
   };
@@ -122,15 +134,24 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
     return amount.toLocaleString();
   };
 
-  // Globe coordinates
-  const destCity = useMemo(() => getCityData(form.destination_city), [form.destination_city]);
-  const depCity = useMemo(() => getCityData(form.departure_city || ""), [form.departure_city]);
+  // Globe coordinates - use selected city objects if available, fallback to lookup
+  const destCity = useMemo(() => {
+    if (selectedDestCity) return selectedDestCity;
+    return getCityData(form.destination_city);
+  }, [selectedDestCity, form.destination_city]);
+  
+  const depCity = useMemo(() => {
+    if (selectedDepCity) return selectedDepCity;
+    return getCityData(form.departure_city || "");
+  }, [selectedDepCity, form.departure_city]);
 
   const handleDepartureSelect = (city: WorldCity) => {
+    setSelectedDepCity(city); // Store the full city object with coordinates
     updateForm({ departure_city: city.city });
   };
 
   const handleDestinationSelect = (city: WorldCity) => {
+    setSelectedDestCity(city); // Store the full city object with coordinates
     updateForm({
       destination_city: city.city,
       destination_country: city.country,
@@ -300,7 +321,14 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
                       <Navigation className="h-3.5 w-3.5" />
                       {form.departure_city}
                     </span>
-                    <Route className="h-3.5 w-3.5 text-accent animate-pulse" />
+                    <div className="flex items-center gap-2">
+                      <Route className="h-3.5 w-3.5 text-accent" />
+                      {routeInfo && (
+                        <span className="text-xs text-muted-foreground">
+                          {routeInfo.distanceKm.toFixed(0)} km · {routeInfo.durationFormatted}
+                        </span>
+                      )}
+                    </div>
                     <span className="flex items-center gap-1.5 text-accent">
                       <MapPin className="h-3.5 w-3.5" />
                       {form.destination_city}
@@ -320,6 +348,8 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
                 depLng={depCity?.lng}
                 depName={form.departure_city || undefined}
                 className="h-full w-full"
+                showRealRoute={true}
+                onRouteLoad={handleRouteLoad}
               />
             </div>
           </div>
