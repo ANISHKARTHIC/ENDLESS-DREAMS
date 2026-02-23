@@ -47,6 +47,7 @@ class TripGenerateView(APIView):
         # Create trip
         trip = Trip(
             title=f"{data['destination_city']} Adventure",
+            departure_city=data.get('departure_city', ''),
             destination_city=data['destination_city'],
             destination_country=data['destination_country'],
             start_date=data['start_date'],
@@ -60,6 +61,16 @@ class TripGenerateView(APIView):
             interest_adventure=data.get('interest_adventure', 0.5),
             interest_relaxation=data.get('interest_relaxation', 0.5),
         )
+
+        # Attach selected travel option if provided
+        travel_option_id = data.get('travel_option_id')
+        if travel_option_id:
+            from travel.models import TravelOption
+            try:
+                travel_opt = TravelOption.objects.get(id=travel_option_id)
+                trip.selected_travel_option = travel_opt
+            except TravelOption.DoesNotExist:
+                pass
 
         if request.user.is_authenticated:
             trip.user = request.user

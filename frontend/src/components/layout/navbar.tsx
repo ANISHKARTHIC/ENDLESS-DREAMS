@@ -13,15 +13,19 @@ import {
   X,
   LayoutDashboard,
   Sparkles,
+  ChevronDown,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCurrency } from "@/contexts/currency-context";
 
 export function Navbar() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [currencyOpen, setCurrencyOpen] = useState(false);
+  const { currency, setCurrency, rates } = useCurrency();
 
   useEffect(() => {
     setMounted(true);
@@ -74,6 +78,56 @@ export function Navbar() {
 
             {/* Actions */}
             <div className="flex items-center gap-2">
+              {/* Currency Switcher */}
+              <div className="relative hidden md:block">
+                <button
+                  onClick={() => setCurrencyOpen(!currencyOpen)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200 border border-border/50"
+                >
+                  <span className="text-sm">
+                    {rates.find((r) => r.currency_code === currency)?.symbol ?? "\u20b9"}
+                  </span>
+                  <span>{currency}</span>
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+
+                <AnimatePresence>
+                  {currencyOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-full mt-1 w-48 glass rounded-xl border border-border/50 shadow-xl overflow-hidden z-50"
+                    >
+                      <div className="p-1 max-h-64 overflow-y-auto">
+                        {rates.map((rate) => (
+                          <button
+                            key={rate.currency_code}
+                            onClick={() => {
+                              setCurrency(rate.currency_code);
+                              setCurrencyOpen(false);
+                            }}
+                            className={cn(
+                              "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition",
+                              currency === rate.currency_code
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                            )}
+                          >
+                            <span className="text-sm w-5">{rate.symbol}</span>
+                            <span className="font-medium">{rate.currency_code}</span>
+                            <span className="text-[10px] ml-auto opacity-60">
+                              {rate.currency_name}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
               <button
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                 className={cn(
@@ -139,6 +193,23 @@ export function Navbar() {
                   {link.label}
                 </Link>
               ))}
+
+              {/* Mobile currency selector */}
+              <div className="px-4 py-2">
+                <label className="text-xs text-muted-foreground mb-1 block">Currency</label>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-full py-2 px-3 rounded-xl bg-muted/50 border border-border text-sm text-foreground"
+                >
+                  {rates.map((r) => (
+                    <option key={r.currency_code} value={r.currency_code}>
+                      {r.symbol} {r.currency_code} - {r.currency_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <Link href="/dashboard" onClick={() => setMenuOpen(false)}>
                 <Button size="sm" className="w-full mt-2">
                   <Sparkles className="h-3.5 w-3.5 mr-1.5" />

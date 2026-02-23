@@ -9,7 +9,7 @@ import { TripGenerationForm } from "@/components/trip/trip-generation-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import type { TripGenerateRequest, Trip } from "@/types";
-import { Sparkles, MapPin, Calendar, Plane, ArrowRight } from "lucide-react";
+import { Sparkles, MapPin, Calendar, Plane, ArrowRight, Settings2, Globe } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardPage() {
@@ -54,12 +54,19 @@ export default function DashboardPage() {
             animate={{ opacity: 1, y: 0 }}
             className="mb-10"
           >
-            <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
-              Plan Your Journey
-            </h1>
-            <p className="mt-2 text-muted-foreground">
-              Tell us about your dream trip and let AI craft the perfect itinerary
-            </p>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
+                <Globe className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
+                  Plan Your Journey
+                </h1>
+                <p className="text-muted-foreground">
+                  Explore 100+ destinations worldwide with AI-powered itineraries
+                </p>
+              </div>
+            </div>
           </motion.div>
 
           <div className="grid lg:grid-cols-3 gap-8">
@@ -126,25 +133,35 @@ export default function DashboardPage() {
                   ) : (
                     <div className="space-y-2">
                       {recentTrips.slice(0, 5).map((trip) => (
-                        <Link
+                        <div
                           key={trip.id}
-                          href={`/trip/${trip.id}`}
                           className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition group"
                         >
-                          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                            <MapPin className="h-4 w-4 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">
-                              {trip.destination_city}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {trip.duration_days} days &middot; $
-                              {trip.budget_usd}
-                            </p>
-                          </div>
-                          <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
-                        </Link>
+                          <Link href={`/trip/${trip.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                              <MapPin className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {trip.destination_city}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {trip.duration_days} days &middot; $
+                                {trip.budget_usd}
+                              </p>
+                            </div>
+                          </Link>
+                          <Link
+                            href={`/trip/${trip.id}`}
+                            className="p-1.5 rounded-lg hover:bg-primary/10 transition opacity-0 group-hover:opacity-100"
+                            title="Customize trip"
+                          >
+                            <Settings2 className="h-3.5 w-3.5 text-primary" />
+                          </Link>
+                          <Link href={`/trip/${trip.id}`}>
+                            <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
+                          </Link>
+                        </div>
                       ))}
                     </div>
                   )}

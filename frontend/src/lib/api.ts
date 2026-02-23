@@ -231,6 +231,29 @@ class ApiClient {
       body: JSON.stringify(data),
     });
   }
+
+  // Travel
+  async searchTravel(data: { departure_city: string; arrival_city: string; travel_date: string; transport_types?: string[] }) {
+    return this.request<import('@/types').TravelSearchResponse>('/travel/search/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getTravelOption(id: string) {
+    return this.request<import('@/types').TravelOption>(`/travel/options/${id}/`);
+  }
+
+  // Currency
+  async getCurrencyRates() {
+    return this.request<import('@/types').CurrencyRatesResponse>('/travel/currency/rates/');
+  }
+
+  async convertCurrency(amount: number, from: string, to: string) {
+    return this.request<{ original_amount: number; from: string; to: string; converted_amount: number }>(
+      `/travel/currency/convert/?amount=${amount}&from=${from}&to=${to}`
+    );
+  }
 }
 
 export const api = new ApiClient();

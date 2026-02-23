@@ -138,7 +138,7 @@ export function ItineraryCard({
               <DollarSign className="h-3.5 w-3.5" />
               <span>${item.estimated_cost_usd}</span>
             </div>
-            {item.place.rating > 0 && (
+            {Number(item.place.rating) > 0 && (
               <div className="flex items-center gap-1">
                 <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
                 <span>{Number(item.place.rating).toFixed(1)}</span>

@@ -26,6 +26,8 @@ class Trip(models.Model):
     session_id = models.CharField(max_length=64, blank=True, db_index=True,
                                    help_text='For anonymous users')
     title = models.CharField(max_length=255)
+    departure_city = models.CharField(max_length=100, blank=True, default='',
+                                       help_text='City of departure')
     destination_city = models.CharField(max_length=100)
     destination_country = models.CharField(max_length=100)
     start_date = models.DateField()
@@ -35,6 +37,13 @@ class Trip(models.Model):
     pace = models.CharField(max_length=20, choices=PACE_CHOICES, default='moderate')
     group_size = models.IntegerField(default=1)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+
+    # Selected travel option
+    selected_travel_option = models.ForeignKey(
+        'travel.TravelOption', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='trips',
+        help_text='The travel option chosen by the user for this trip',
+    )
 
     # Interest weights for this trip
     interest_culture = models.FloatField(default=0.5)

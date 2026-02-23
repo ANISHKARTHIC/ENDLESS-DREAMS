@@ -1,5 +1,5 @@
 """API v1 URL configuration."""
-from django.urls import path
+from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from users.views import RegisterView, ProfileView, PreferencesView, LogoutView
@@ -41,6 +41,9 @@ urlpatterns = [
     path('places/', PlaceListView.as_view(), name='place-list'),
     path('places/<uuid:id>/', PlaceDetailView.as_view(), name='place-detail'),
     path('places/city/<str:city>/', PlaceByCityView.as_view(), name='places-by-city'),
+
+    # Travel & Currency
+    path('travel/', include('travel.urls')),
 
     # Monitoring
     path('trips/<uuid:trip_id>/events/', ReplanEventListView.as_view(), name='replan-events'),

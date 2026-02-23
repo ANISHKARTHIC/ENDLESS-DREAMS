@@ -28,6 +28,7 @@ import type {
   WeatherData,
   ReplanEvent,
 } from "@/types";
+import Link from "next/link";
 import {
   Calendar,
   MapPin,
@@ -36,6 +37,11 @@ import {
   RefreshCw,
   Cloud,
   Activity,
+  Settings2,
+  Plane,
+  ArrowRight,
+  Route,
+  Navigation,
 } from "lucide-react";
 
 export default function TripDetailPage() {
@@ -218,11 +224,44 @@ export default function TripDetailPage() {
               <div className="flex items-center gap-3">
                 {health && <StabilityBadge health={health} />}
                 {weather && <WeatherOverlay weather={weather} compact />}
+                {/* Customize Button */}
+                <Link href="/dashboard">
+                  <Button variant="outline" className="border-primary/30 hover:border-primary/50 hover:bg-primary/5 text-primary">
+                    <Settings2 className="h-4 w-4 mr-1.5" />
+                    Customize
+                  </Button>
+                </Link>
               </div>
             </div>
 
+            {/* Travel Route Visualization */}
+            {trip.departure_city && (
+              <div className="mt-5 flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 border border-primary/10">
+                <div className="flex items-center gap-2">
+                  <Navigation className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium text-foreground">{trip.departure_city}</span>
+                </div>
+                <div className="flex-1 flex items-center gap-1.5">
+                  <div className="flex-1 h-px bg-gradient-to-r from-primary/50 to-accent/50" />
+                  <div className="flex items-center gap-1">
+                    <Plane className="h-4 w-4 text-accent -rotate-12" />
+                    {trip.selected_travel_summary && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-medium">
+                        {trip.selected_travel_summary.provider_name} · {trip.selected_travel_summary.transport_type}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 h-px bg-gradient-to-r from-accent/50 to-primary/50" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-accent" />
+                  <span className="text-sm font-medium text-foreground">{trip.destination_city}</span>
+                </div>
+              </div>
+            )}
+
             {/* Budget bar */}
-            <div className="mt-6">
+            <div className="mt-5">
               <BudgetProgress
                 spent={trip.budget_spent_usd}
                 total={trip.budget_usd}

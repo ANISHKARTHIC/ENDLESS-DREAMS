@@ -21,6 +21,7 @@ export interface User {
 export interface Trip {
   id: string;
   title: string;
+  departure_city: string;
   destination_city: string;
   destination_country: string;
   start_date: string;
@@ -41,11 +42,24 @@ export interface Trip {
   budget_remaining: string | number;
   budget_usage_ratio: string | number;
   itinerary_count: number;
+  selected_travel_summary: TravelSummary | null;
   created_at: string;
   updated_at: string;
 }
 
+export interface TravelSummary {
+  id: string;
+  transport_type: 'flight' | 'train' | 'bus';
+  provider_name: string;
+  departure_time: string | null;
+  arrival_time: string | null;
+  duration_minutes: number;
+  price_inr: string;
+  carbon_kg: number;
+}
+
 export interface TripGenerateRequest {
+  departure_city?: string;
   destination_city: string;
   destination_country: string;
   start_date: string;
@@ -58,7 +72,66 @@ export interface TripGenerateRequest {
   interest_food?: number;
   interest_adventure?: number;
   interest_relaxation?: number;
+  travel_option_id?: string;
 }
+
+/* ──── Travel Types ──── */
+
+export interface TravelOption {
+  id: string;
+  transport_type: 'flight' | 'train' | 'bus';
+  provider_name: string;
+  route_number: string;
+  departure_city: string;
+  departure_station: string;
+  arrival_city: string;
+  arrival_station: string;
+  departure_time: string;
+  arrival_time: string;
+  duration_minutes: number;
+  price_inr: string | number;
+  price_usd: string | number;
+  stops: number;
+  stop_details: string[];
+  cabin_class: string;
+  carbon_kg: number;
+  delay_risk: number;
+  amenities: string[];
+  is_direct: boolean;
+  is_mock: boolean;
+  badges?: string[];
+  created_at: string;
+}
+
+export interface TravelSearchRequest {
+  departure_city: string;
+  arrival_city: string;
+  travel_date: string;
+  transport_types?: ('flight' | 'train' | 'bus')[];
+}
+
+export interface TravelSearchResponse {
+  departure_city: string;
+  arrival_city: string;
+  travel_date: string;
+  total_options: number;
+  options: TravelOption[];
+}
+
+export interface CurrencyRate {
+  currency_code: string;
+  currency_name: string;
+  symbol: string;
+  rate_from_inr: number;
+  updated_at: string;
+}
+
+export interface CurrencyRatesResponse {
+  base: string;
+  rates: CurrencyRate[];
+}
+
+/* ──── Existing Types ──── */
 
 export interface Place {
   id: string;
