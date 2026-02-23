@@ -1,146 +1,72 @@
 """
-Accommodation Service — Hotel/Stay search with proximity optimization.
+Accommodation Service — Hotel/Stay search using Google Places API.
 
-When no external API key is set, uses rich mock data.
-Selects stays near the centroid of itinerary activities,
-minimizing average travel time to attractions.
+Uses Google Places API (Text Search) to find REAL hotels, hostels,
+resorts, and other accommodation near the destination.
+Falls back to Mapbox POI search if Google Places fails.
 """
 import math
-import random
 import logging
-from decimal import Decimal
+import requests
 from typing import List, Dict, Any, Optional
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-# ── Mock hotel database keyed by city ──────────────────────────────────
-
-MOCK_HOTELS: Dict[str, List[Dict[str, Any]]] = {
-    "Paris": [
-        {"name": "Hotel Le Marais", "type": "hotel", "stars": 4, "lat": 48.8566, "lng": 2.3522,
-         "price_per_night": 180, "rating": 4.5, "amenities": ["WiFi", "Breakfast", "Concierge"],
-         "image": "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=75",
-         "distance_to_center_km": 0.3, "description": "Charming boutique in the heart of Le Marais."},
-        {"name": "Ibis Eiffel Tower", "type": "hotel", "stars": 3, "lat": 48.8530, "lng": 2.2900,
-         "price_per_night": 95, "rating": 4.0, "amenities": ["WiFi", "AC"],
-         "image": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=75",
-         "distance_to_center_km": 1.5, "description": "Budget-friendly near the Eiffel Tower."},
-        {"name": "The Ritz Paris", "type": "resort", "stars": 5, "lat": 48.8682, "lng": 2.3282,
-         "price_per_night": 850, "rating": 4.9, "amenities": ["WiFi", "Spa", "Pool", "Fine Dining", "Butler"],
-         "image": "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=75",
-         "distance_to_center_km": 0.5, "description": "Legendary luxury on Place Vendôme."},
-        {"name": "Generator Paris", "type": "hostel", "stars": 2, "lat": 48.8809, "lng": 2.3700,
-         "price_per_night": 35, "rating": 4.1, "amenities": ["WiFi", "Shared Kitchen", "Lounge"],
-         "image": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400&q=75",
-         "distance_to_center_km": 2.0, "description": "Vibrant hostel near Colonel Fabien."},
-        {"name": "Maison Souquet", "type": "boutique", "stars": 5, "lat": 48.8825, "lng": 2.3374,
-         "price_per_night": 420, "rating": 4.8, "amenities": ["WiFi", "Spa", "Bar", "Garden"],
-         "image": "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=400&q=75",
-         "distance_to_center_km": 1.2, "description": "Intimate luxury in Montmartre."},
-    ],
-    "Tokyo": [
-        {"name": "Shinjuku Granbell", "type": "hotel", "stars": 4, "lat": 35.6938, "lng": 139.7034,
-         "price_per_night": 120, "rating": 4.4, "amenities": ["WiFi", "Onsen", "Rooftop Bar"],
-         "image": "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=400&q=75",
-         "distance_to_center_km": 0.5, "description": "Modern design hotel in Shinjuku."},
-        {"name": "Park Hyatt Tokyo", "type": "resort", "stars": 5, "lat": 35.6868, "lng": 139.6917,
-         "price_per_night": 650, "rating": 4.9, "amenities": ["WiFi", "Spa", "Pool", "Fine Dining"],
-         "image": "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=400&q=75",
-         "distance_to_center_km": 0.8, "description": "Iconic luxury from Lost in Translation."},
-        {"name": "Khaosan Tokyo Kabuki", "type": "hostel", "stars": 2, "lat": 35.7100, "lng": 139.7950,
-         "price_per_night": 25, "rating": 4.2, "amenities": ["WiFi", "Shared Kitchen"],
-         "image": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400&q=75",
-         "distance_to_center_km": 3.0, "description": "Lively backpacker hub in Asakusa."},
-        {"name": "Hotel Ryumeikan", "type": "boutique", "stars": 4, "lat": 35.6812, "lng": 139.7671,
-         "price_per_night": 200, "rating": 4.6, "amenities": ["WiFi", "Onsen", "Japanese Breakfast"],
-         "image": "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=400&q=75",
-         "distance_to_center_km": 0.3, "description": "Traditional elegance near Tokyo Station."},
-    ],
-    "Singapore": [
-        {"name": "Marina Bay Sands", "type": "resort", "stars": 5, "lat": 1.2834, "lng": 103.8607,
-         "price_per_night": 450, "rating": 4.8, "amenities": ["WiFi", "Infinity Pool", "Spa", "Casino", "Fine Dining"],
-         "image": "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=400&q=75",
-         "distance_to_center_km": 0.3, "description": "Iconic waterfront resort with the famous rooftop infinity pool."},
-        {"name": "Hotel Boss", "type": "hotel", "stars": 3, "lat": 1.3095, "lng": 103.8626,
-         "price_per_night": 80, "rating": 4.0, "amenities": ["WiFi", "Pool", "Gym"],
-         "image": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=75",
-         "distance_to_center_km": 1.5, "description": "Value-for-money near Lavender MRT."},
-        {"name": "Raffles Hotel", "type": "boutique", "stars": 5, "lat": 1.2949, "lng": 103.8543,
-         "price_per_night": 700, "rating": 4.9, "amenities": ["WiFi", "Spa", "Butler", "Pool", "Heritage Tour"],
-         "image": "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=75",
-         "distance_to_center_km": 0.4, "description": "Singapore's legendary colonial-era luxury hotel."},
-        {"name": "Capsule Pod @ Beach Road", "type": "hostel", "stars": 2, "lat": 1.3005, "lng": 103.8580,
-         "price_per_night": 30, "rating": 4.2, "amenities": ["WiFi", "Locker", "Shared Bathroom"],
-         "image": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400&q=75",
-         "distance_to_center_km": 1.0, "description": "Modern capsule hotel for budget travelers."},
-        {"name": "Pan Pacific Singapore", "type": "hotel", "stars": 5, "lat": 1.2911, "lng": 103.8586,
-         "price_per_night": 280, "rating": 4.6, "amenities": ["WiFi", "Pool", "Spa", "Gym", "Club Lounge"],
-         "image": "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=400&q=75",
-         "distance_to_center_km": 0.5, "description": "Premium waterfront hotel at Marina Square."},
-        {"name": "Lloyd's Inn", "type": "boutique", "stars": 3, "lat": 1.3067, "lng": 103.8376,
-         "price_per_night": 150, "rating": 4.5, "amenities": ["WiFi", "Garden", "Minimalist Design"],
-         "image": "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=400&q=75",
-         "distance_to_center_km": 1.2, "description": "Minimalist oasis in the Somerset neighbourhood."},
-    ],
-    "Dubai": [
-        {"name": "Burj Al Arab", "type": "resort", "stars": 5, "lat": 25.1412, "lng": 55.1853,
-         "price_per_night": 1200, "rating": 4.9, "amenities": ["WiFi", "Butler", "Pool", "Spa", "Helipad"],
-         "image": "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=75",
-         "distance_to_center_km": 5.0, "description": "The world's most luxurious hotel."},
-        {"name": "Rove Downtown", "type": "hotel", "stars": 3, "lat": 25.1907, "lng": 55.2723,
-         "price_per_night": 75, "rating": 4.3, "amenities": ["WiFi", "Pool", "Gym"],
-         "image": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=75",
-         "distance_to_center_km": 0.8, "description": "Trendy value hotel near Dubai Mall."},
-        {"name": "Atlantis The Palm", "type": "resort", "stars": 5, "lat": 25.1304, "lng": 55.1172,
-         "price_per_night": 500, "rating": 4.7, "amenities": ["WiFi", "Waterpark", "Aquarium", "Pool", "Spa"],
-         "image": "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=400&q=75",
-         "distance_to_center_km": 15.0, "description": "Iconic resort on the Palm Jumeirah."},
-        {"name": "Barsha Heights Hostel", "type": "hostel", "stars": 2, "lat": 25.0993, "lng": 55.1771,
-         "price_per_night": 25, "rating": 3.9, "amenities": ["WiFi", "Shared Kitchen"],
-         "image": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400&q=75",
-         "distance_to_center_km": 8.0, "description": "Budget stay near the metro."},
-    ],
-    "Bangkok": [
-        {"name": "Mandarin Oriental Bangkok", "type": "resort", "stars": 5, "lat": 13.7233, "lng": 100.5147,
-         "price_per_night": 350, "rating": 4.8, "amenities": ["WiFi", "Spa", "Pool", "River View", "Fine Dining"],
-         "image": "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=75",
-         "distance_to_center_km": 1.0, "description": "Legendary riverside luxury."},
-        {"name": "Lub d Bangkok Silom", "type": "hostel", "stars": 2, "lat": 13.7280, "lng": 100.5341,
-         "price_per_night": 15, "rating": 4.3, "amenities": ["WiFi", "Rooftop Bar", "Shared Kitchen"],
-         "image": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400&q=75",
-         "distance_to_center_km": 1.5, "description": "Stylish hostel in the Silom district."},
-        {"name": "Chatrium Hotel Riverside", "type": "hotel", "stars": 4, "lat": 13.7050, "lng": 100.5100,
-         "price_per_night": 90, "rating": 4.4, "amenities": ["WiFi", "Pool", "Gym", "River Shuttle"],
-         "image": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=75",
-         "distance_to_center_km": 2.0, "description": "Great value riverside hotel."},
-    ],
+# Stay type → Google Places search query mapping
+STAY_TYPE_QUERIES = {
+    'hotel': 'hotels',
+    'hostel': 'hostels backpacker',
+    'resort': 'luxury resort',
+    'airbnb': 'serviced apartments vacation rental',
+    'boutique': 'boutique hotel',
+    'any': 'hotels accommodation',
 }
 
-# Generic template for cities without specific data
-_GENERIC_TEMPLATES = [
-    {"name": "Central Grand Hotel", "type": "hotel", "stars": 4,
-     "price_per_night": 150, "rating": 4.4, "amenities": ["WiFi", "Breakfast", "Gym"],
-     "distance_to_center_km": 0.5, "description": "Comfortable stay in the city center."},
-    {"name": "Luxury Palace Resort", "type": "resort", "stars": 5,
-     "price_per_night": 500, "rating": 4.8, "amenities": ["WiFi", "Spa", "Pool", "Fine Dining"],
-     "distance_to_center_km": 1.0, "description": "Premium resort experience."},
-    {"name": "Traveler's Hostel", "type": "hostel", "stars": 2,
-     "price_per_night": 30, "rating": 4.0, "amenities": ["WiFi", "Shared Kitchen", "Lounge"],
-     "distance_to_center_km": 2.5, "description": "Budget-friendly with a social vibe."},
-    {"name": "The Boutique Inn", "type": "boutique", "stars": 4,
-     "price_per_night": 220, "rating": 4.6, "amenities": ["WiFi", "Breakfast", "Garden"],
-     "distance_to_center_km": 0.8, "description": "Curated design hotel with local character."},
-    {"name": "City Budget Hotel", "type": "hotel", "stars": 3,
-     "price_per_night": 75, "rating": 3.8, "amenities": ["WiFi", "AC"],
-     "distance_to_center_km": 1.8, "description": "No-frills comfort at a great price."},
-    {"name": "Skyline Airbnb Apartment", "type": "airbnb", "stars": 0,
-     "price_per_night": 100, "rating": 4.3, "amenities": ["WiFi", "Kitchen", "Washer"],
-     "distance_to_center_km": 1.2, "description": "Spacious apartment with a city view."},
-]
+# Price level mapping (Google Places returns 0-4)
+PRICE_LEVEL_MULTIPLIER = {
+    0: 0.3,   # Free
+    1: 0.6,   # Inexpensive
+    2: 1.0,   # Moderate
+    3: 1.6,   # Expensive
+    4: 2.5,   # Very Expensive
+}
+
+# Base nightly price per region (USD) for estimating when not provided
+REGION_BASE_PRICE = {
+    'india': 40, 'southeast_asia': 50, 'east_asia': 90,
+    'europe': 120, 'north_america': 150, 'middle_east': 130,
+    'oceania': 160, 'south_america': 70, 'africa': 60,
+    'default': 100,
+}
+
+
+def _detect_region(country: str) -> str:
+    """Rough region detection from country name for price estimation."""
+    c = country.lower()
+    if any(w in c for w in ['india', 'sri lanka', 'nepal', 'bangladesh', 'pakistan']):
+        return 'india'
+    if any(w in c for w in ['thailand', 'vietnam', 'indonesia', 'malaysia', 'philippines', 'cambodia', 'myanmar', 'laos', 'singapore']):
+        return 'southeast_asia'
+    if any(w in c for w in ['japan', 'korea', 'china', 'taiwan', 'hong kong']):
+        return 'east_asia'
+    if any(w in c for w in ['united states', 'canada', 'mexico']):
+        return 'north_america'
+    if any(w in c for w in ['united kingdom', 'france', 'germany', 'italy', 'spain', 'portugal', 'netherlands', 'switzerland', 'austria', 'belgium', 'czech', 'poland', 'greece', 'sweden', 'norway', 'denmark', 'finland', 'ireland']):
+        return 'europe'
+    if any(w in c for w in ['uae', 'dubai', 'saudi', 'qatar', 'oman', 'bahrain', 'kuwait', 'turkey']):
+        return 'middle_east'
+    if any(w in c for w in ['australia', 'new zealand']):
+        return 'oceania'
+    return 'default'
 
 
 class AccommodationService:
-    """Finds and ranks accommodation options for a trip."""
+    """Finds and ranks accommodation options using Google Places API."""
+
+    def __init__(self):
+        self.google_api_key = getattr(settings, 'GOOGLE_PLACES_API_KEY', '')
+        self.mapbox_token = getattr(settings, 'MAPBOX_ACCESS_TOKEN', '')
 
     def search(
         self,
@@ -149,83 +75,103 @@ class AccommodationService:
         stay_type: Optional[str] = None,
         num_nights: int = 1,
         attraction_centroid: Optional[tuple] = None,
+        country: str = '',
     ) -> List[Dict[str, Any]]:
         """
-        Search for accommodation.
-
-        Args:
-            city: Destination city
-            budget_per_night: Max nightly budget in USD
-            stay_type: Preferred type (hotel/hostel/resort/airbnb/boutique) or None for all
-            num_nights: Number of nights
-            attraction_centroid: (lat, lng) center of itinerary activities for proximity calc
-
-        Returns:
-            List of accommodation dicts sorted by optimization score.
+        Search for real accommodation using Google Places API.
         """
-        # Get mock data for this city
-        raw_hotels = self._get_hotels_for_city(city)
+        raw_places = []
+
+        # Try Google Places API first
+        if self.google_api_key:
+            raw_places = self._search_google_places(city, stay_type, attraction_centroid)
+
+        # Fallback to Mapbox POI search
+        if not raw_places and self.mapbox_token:
+            raw_places = self._search_mapbox_poi(city, stay_type, attraction_centroid)
+
+        if not raw_places:
+            logger.warning(f"No accommodation found for {city}")
+            return []
+
+        # Estimate prices and rank
+        region = _detect_region(country or city)
+        base_price = REGION_BASE_PRICE.get(region, 100)
 
         results = []
-        for h in raw_hotels:
-            # Filter by stay type preference
-            if stay_type and stay_type != "any" and h["type"] != stay_type:
-                continue
+        for place in raw_places:
+            nightly = base_price
 
-            nightly = h["price_per_night"]
+            # Apply price level if available
+            price_level = place.get('price_level')
+            if price_level is not None:
+                nightly = base_price * PRICE_LEVEL_MULTIPLIER.get(price_level, 1.0)
+
             total_cost = nightly * num_nights
 
-            # Budget feasibility (allow up to 30% over for premium options)
-            if nightly > budget_per_night * 1.3:
+            # Budget feasibility (allow 40% over for showing premium options)
+            if nightly > budget_per_night * 1.4:
                 continue
 
-            # Proximity score: closer to attraction centroid = better
-            proximity_score = 1.0
-            distance_km = h.get("distance_to_center_km", 2.0)
-            if attraction_centroid and "lat" in h and "lng" in h:
+            # Infer stay type from place types/name
+            place_type = self._infer_stay_type(place)
+
+            # Proximity score
+            distance_km = place.get('distance_km', 2.0)
+            if attraction_centroid and place.get('lat') and place.get('lng'):
                 distance_km = self._haversine(
                     attraction_centroid[0], attraction_centroid[1],
-                    h["lat"], h["lng"],
+                    place['lat'], place['lng'],
                 )
             proximity_score = math.exp(-distance_km / 3.0)
 
-            # Travel time saved estimate (vs a hotel 5km away)
+            # Travel time saved estimate
             baseline_km = 5.0
             travel_time_saved_pct = max(0, int((1 - distance_km / baseline_km) * 100))
 
-            # Value score
+            # Scoring
+            rating = place.get('rating', 4.0)
             price_score = 1 - min(1.0, nightly / max(1, budget_per_night))
-            rating_score = h["rating"] / 5.0
+            rating_score = rating / 5.0
+            type_bonus = 0.10 if place_type == stay_type else 0.05
+
             optimization_score = (
                 proximity_score * 0.35 +
                 price_score * 0.30 +
                 rating_score * 0.25 +
-                (0.10 if h["type"] == stay_type else 0.05)
+                type_bonus
             )
 
+            stars = 0
+            if rating >= 4.5:
+                stars = 5
+            elif rating >= 4.0:
+                stars = 4
+            elif rating >= 3.5:
+                stars = 3
+            elif rating >= 3.0:
+                stars = 2
+
             results.append({
-                "name": h["name"],
-                "type": h["type"],
-                "stars": h["stars"],
-                "price_per_night_usd": nightly,
-                "total_cost_usd": total_cost,
-                "rating": h["rating"],
-                "amenities": h.get("amenities", []),
-                "image_url": h.get("image", ""),
-                "description": h.get("description", ""),
-                "distance_to_attractions_km": round(distance_km, 1),
-                "travel_time_saved_pct": travel_time_saved_pct,
-                "optimization_score": round(optimization_score, 3),
-                "is_recommended": False,
-                "is_mock": True,
+                'name': place.get('name', 'Unknown Hotel'),
+                'type': place_type,
+                'stars': stars,
+                'price_per_night_usd': round(nightly, 2),
+                'total_cost_usd': round(total_cost, 2),
+                'rating': rating,
+                'amenities': place.get('amenities', []),
+                'image_url': place.get('photo_url', ''),
+                'description': place.get('vicinity', place.get('address', '')),
+                'distance_to_attractions_km': round(distance_km, 1),
+                'travel_time_saved_pct': travel_time_saved_pct,
+                'optimization_score': round(optimization_score, 3),
+                'is_recommended': False,
+                'is_mock': False,
             })
 
-        # Sort by optimization score
-        results.sort(key=lambda x: x["optimization_score"], reverse=True)
-
-        # Mark top result as recommended
+        results.sort(key=lambda x: x['optimization_score'], reverse=True)
         if results:
-            results[0]["is_recommended"] = True
+            results[0]['is_recommended'] = True
 
         return results
 
@@ -241,26 +187,155 @@ class AccommodationService:
         results = self.search(city, budget_per_night, stay_type, num_nights, attraction_centroid)
         return results[0] if results else None
 
-    def _get_hotels_for_city(self, city: str) -> List[Dict[str, Any]]:
-        """Get hotel data — real API or mock fallback."""
-        # City-specific mock data
-        if city in MOCK_HOTELS:
-            return MOCK_HOTELS[city]
+    # ── Google Places API ────────────────────────────────────────────────
 
-        # Generate plausible hotels for unknown cities
-        random.seed(hash(city) % (2**32))  # Deterministic per city
-        hotels = []
-        for template in _GENERIC_TEMPLATES:
-            h = dict(template)
-            h["name"] = f"{city} {h['name']}"
-            # Randomize price ±20%
-            factor = 0.8 + random.random() * 0.4
-            h["price_per_night"] = int(h["price_per_night"] * factor)
-            h["rating"] = round(h["rating"] + (random.random() - 0.5) * 0.4, 1)
-            h["rating"] = min(5.0, max(3.0, h["rating"]))
-            h["image"] = "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=75"
-            hotels.append(h)
-        return hotels
+    def _search_google_places(
+        self, city: str, stay_type: Optional[str], centroid: Optional[tuple]
+    ) -> List[Dict[str, Any]]:
+        """Search Google Places API for real hotels/accommodation."""
+        query_type = STAY_TYPE_QUERIES.get(stay_type or 'any', 'hotels accommodation')
+        query = f"{query_type} in {city}"
+
+        try:
+            params: dict = {
+                'query': query,
+                'key': self.google_api_key,
+                'type': 'lodging',
+                'language': 'en',
+            }
+            if centroid:
+                params['location'] = f"{centroid[0]},{centroid[1]}"
+                params['radius'] = '10000'
+
+            resp = requests.get(
+                'https://maps.googleapis.com/maps/api/place/textsearch/json',
+                params=params,
+                timeout=15,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+            if data.get('status') != 'OK':
+                logger.warning(f"Google Places: {data.get('status')} - {data.get('error_message', '')}")
+                return []
+
+            places = []
+            for result in data.get('results', [])[:10]:
+                loc = result.get('geometry', {}).get('location', {})
+                photo_url = ''
+                if result.get('photos'):
+                    photo_ref = result['photos'][0].get('photo_reference', '')
+                    if photo_ref:
+                        photo_url = (
+                            f"https://maps.googleapis.com/maps/api/place/photo"
+                            f"?maxwidth=400&photo_reference={photo_ref}&key={self.google_api_key}"
+                        )
+
+                places.append({
+                    'name': result.get('name', ''),
+                    'lat': loc.get('lat', 0),
+                    'lng': loc.get('lng', 0),
+                    'rating': result.get('rating', 4.0),
+                    'user_ratings_total': result.get('user_ratings_total', 0),
+                    'price_level': result.get('price_level'),
+                    'vicinity': result.get('formatted_address', ''),
+                    'types': result.get('types', []),
+                    'photo_url': photo_url,
+                    'amenities': self._extract_amenities(result),
+                })
+            return places
+
+        except Exception as e:
+            logger.error(f"Google Places search failed: {e}")
+            return []
+
+    # ── Mapbox fallback ─────────────────────────────────────────────────
+
+    def _search_mapbox_poi(
+        self, city: str, stay_type: Optional[str], centroid: Optional[tuple]
+    ) -> List[Dict[str, Any]]:
+        """Fallback: Search Mapbox for accommodation POIs."""
+        query = f"hotel {city}" if not stay_type or stay_type == 'any' else f"{stay_type} {city}"
+
+        try:
+            params: dict = {
+                'access_token': self.mapbox_token,
+                'types': 'poi',
+                'limit': '10',
+                'language': 'en',
+            }
+            if centroid:
+                params['proximity'] = f"{centroid[1]},{centroid[0]}"
+
+            resp = requests.get(
+                f"https://api.mapbox.com/geocoding/v5/mapbox.places/{requests.utils.quote(query)}.json",
+                params=params,
+                timeout=10,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+            places = []
+            for feature in data.get('features', []):
+                coords = feature.get('geometry', {}).get('coordinates', [0, 0])
+                places.append({
+                    'name': feature.get('text', ''),
+                    'lat': coords[1],
+                    'lng': coords[0],
+                    'rating': 4.0,
+                    'vicinity': feature.get('place_name', ''),
+                    'types': feature.get('properties', {}).get('category', '').split(', '),
+                    'photo_url': '',
+                    'amenities': ['WiFi'],
+                })
+            return places
+
+        except Exception as e:
+            logger.error(f"Mapbox POI search failed: {e}")
+            return []
+
+    # ── Helpers ──────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _extract_amenities(place_data: dict) -> list:
+        """Extract amenities from Google Places types."""
+        types = place_data.get('types', [])
+        amenities = ['WiFi']
+
+        type_amenity_map = {
+            'spa': 'Spa', 'gym': 'Gym', 'restaurant': 'Restaurant',
+            'bar': 'Bar', 'parking': 'Parking', 'pool': 'Pool', 'laundry': 'Laundry',
+        }
+        for t in types:
+            for key, amenity in type_amenity_map.items():
+                if key in t.lower():
+                    amenities.append(amenity)
+
+        price_level = place_data.get('price_level', 2)
+        if price_level and price_level >= 3:
+            amenities.extend(['Pool', 'Concierge'])
+        if price_level and price_level >= 4:
+            amenities.extend(['Fine Dining', 'Spa'])
+
+        return list(set(amenities))
+
+    @staticmethod
+    def _infer_stay_type(place: dict) -> str:
+        """Infer stay type from place data."""
+        name_lower = place.get('name', '').lower()
+        types = [t.lower() for t in place.get('types', [])]
+
+        if any(w in name_lower for w in ['hostel', 'backpacker', 'dormitory']):
+            return 'hostel'
+        if any(w in name_lower for w in ['resort', 'spa resort', 'beach resort']):
+            return 'resort'
+        if any(w in name_lower for w in ['boutique', 'design hotel']):
+            return 'boutique'
+        if any(w in name_lower for w in ['apartment', 'flat', 'suite', 'vacation rental', 'airbnb', 'homestay']):
+            return 'airbnb'
+        if any('resort' in t for t in types):
+            return 'resort'
+        return 'hotel'
 
     @staticmethod
     def _haversine(lat1, lon1, lat2, lon2) -> float:

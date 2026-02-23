@@ -1,6 +1,11 @@
-"""Buses service - search for bus options with mock fallback."""
+"""
+Buses service — AI-powered bus search using LLM for real-world knowledge.
+
+Uses LLM to generate realistic bus options based on actual operators,
+routes, terminals, pricing, and durations for any city pair worldwide.
+"""
+import json
 import logging
-import random
 from datetime import datetime, timedelta
 from decimal import Decimal
 from django.conf import settings
@@ -8,151 +13,128 @@ from .base import BaseService
 
 logger = logging.getLogger(__name__)
 
-BUS_OPERATORS = [
-    {'name': 'RedBus Premium', 'code': 'RB', 'rating': 4.0},
-    {'name': 'VRL Travels', 'code': 'VRL', 'rating': 4.2},
-    {'name': 'SRS Travels', 'code': 'SRS', 'rating': 3.8},
-    {'name': 'Orange Travels', 'code': 'OT', 'rating': 3.6},
-    {'name': 'KPN Travels', 'code': 'KPN', 'rating': 3.9},
-    {'name': 'Greenline', 'code': 'GL', 'rating': 4.1},
-    {'name': 'FlixBus', 'code': 'FLX', 'rating': 4.0},
-    {'name': 'National Express', 'code': 'NX', 'rating': 3.7},
-]
+BUS_SEARCH_PROMPT = """You are a travel data API. Given two cities and a date, return realistic bus/coach options that actually exist or could realistically exist on that route.
 
-# Bus routes (domestic Indian + some international short-haul)
-BUS_ROUTES = {
-    ('Delhi', 'Mumbai'): {'duration': 1080, 'base_price': 1200},
-    ('Delhi', 'Bangalore'): {'duration': 1800, 'base_price': 2000},
-    ('Delhi', 'Chennai'): {'duration': 2100, 'base_price': 2200},
-    ('Delhi', 'Kolkata'): {'duration': 1320, 'base_price': 1500},
-    ('Mumbai', 'Bangalore'): {'duration': 960, 'base_price': 1100},
-    ('Mumbai', 'Chennai'): {'duration': 1200, 'base_price': 1400},
-    ('Mumbai', 'Delhi'): {'duration': 1080, 'base_price': 1200},
-    ('Bangalore', 'Chennai'): {'duration': 360, 'base_price': 600},
-    ('Bangalore', 'Mumbai'): {'duration': 960, 'base_price': 1100},
-    ('Chennai', 'Bangalore'): {'duration': 360, 'base_price': 600},
-    ('Chennai', 'Delhi'): {'duration': 2100, 'base_price': 2200},
-    ('Chennai', 'Mumbai'): {'duration': 1200, 'base_price': 1400},
-    ('Chennai', 'Kolkata'): {'duration': 1800, 'base_price': 1800},
-    ('Chennai', 'Hyderabad'): {'duration': 720, 'base_price': 800},
-    ('Kolkata', 'Delhi'): {'duration': 1320, 'base_price': 1500},
-    ('Kolkata', 'Mumbai'): {'duration': 1800, 'base_price': 1800},
-    ('Hyderabad', 'Bangalore'): {'duration': 600, 'base_price': 700},
-    ('Hyderabad', 'Chennai'): {'duration': 720, 'base_price': 800},
-    ('Hyderabad', 'Mumbai'): {'duration': 780, 'base_price': 900},
-    ('Hyderabad', 'Delhi'): {'duration': 1440, 'base_price': 1600},
-}
+Use your real-world knowledge of:
+- Actual bus operators for that region (e.g., RedBus, VRL Travels, FlixBus, Greyhound, National Express, ALSA, Megabus, etc.)
+- Real bus terminal/station names for those cities
+- Realistic journey durations based on actual road distances
+- Realistic pricing in INR (use current approximate conversion rates)
+- Appropriate bus types for that operator and route
+- Realistic route numbers or bus service identifiers
 
-TERMINALS = {
-    'Delhi': 'Kashmere Gate ISBT',
-    'Mumbai': 'Mumbai Central Bus Depot',
-    'Bangalore': 'Majestic Bus Terminal',
-    'Chennai': 'Chennai Mofussil Bus Terminus (CMBT)',
-    'Kolkata': 'Esplanade Bus Terminus',
-}
+Return ONLY a JSON array (no markdown, no explanation) with 2-5 bus options. Each object must have:
+{{
+  "provider_name": "actual bus operator name",
+  "route_number": "realistic service number",
+  "departure_station": "real bus terminal/station in {departure}",
+  "arrival_station": "real bus terminal/station in {arrival}",
+  "departure_hour": hour (0-23),
+  "departure_minute": minute (0-59),
+  "duration_minutes": realistic duration in minutes,
+  "price_inr": price in INR (integer),
+  "cabin_class": "bus type like AC Sleeper, Volvo Multi-Axle, Standard, etc.",
+  "stops": number of intermediate stops (integer),
+  "amenities": ["list", "of", "amenities"],
+  "carbon_kg": estimated CO2 in kg (float),
+  "delay_risk": probability 0.0-0.4 (float)
+}}
+
+If no bus service exists between these cities (e.g., across oceans or extremely far), return an empty array [].
+"""
 
 
 class BusesService(BaseService):
-    """Bus search with mock data."""
+    """Bus search using LLM for real-world accurate data."""
 
     BASE_URL = ''
 
     def __init__(self):
         super().__init__()
+        self._llm = None
+
+    def _get_llm(self):
+        """Lazy-load LLM layer."""
+        if self._llm is None:
+            from ai_engine.llm_layer import LLMLayer
+            self._llm = LLMLayer()
+        return self._llm
 
     def search(self, departure: str, arrival: str, date) -> list:
-        """Search bus options."""
-        return self._mock_buses(departure, arrival, date)
-
-    def _mock_buses(self, departure: str, arrival: str, date) -> list:
-        """Generate realistic mock bus options."""
-        route_key = (departure, arrival)
-        reverse_key = (arrival, departure)
-
-        route = BUS_ROUTES.get(route_key) or BUS_ROUTES.get(reverse_key)
-        is_known_domestic = route_key in BUS_ROUTES or reverse_key in BUS_ROUTES
-
-        if not route:
-            # Generate a generic bus route for any city pair
-            route = {'duration': random.randint(360, 1200), 'base_price': random.randint(800, 2500)}
-
+        """Search bus options using LLM-generated real-world data."""
         if isinstance(date, str):
             date = datetime.strptime(date, '%Y-%m-%d').date()
 
+        try:
+            llm = self._get_llm()
+            user_prompt = (
+                f"Find realistic bus/coach options from {departure} to {arrival} "
+                f"on {date.strftime('%Y-%m-%d')} ({date.strftime('%A')}). "
+                f"Use real operators, terminals, and pricing for this specific route."
+            )
+
+            system_prompt = BUS_SEARCH_PROMPT.format(
+                departure=departure, arrival=arrival
+            )
+
+            raw = llm._call_llm(system_prompt, user_prompt, max_tokens=1500)
+
+            # Parse JSON from response
+            raw = raw.strip()
+            if raw.startswith('```'):
+                raw = raw.split('\n', 1)[1] if '\n' in raw else raw[3:]
+                raw = raw.rsplit('```', 1)[0]
+            raw = raw.strip()
+
+            buses_data = json.loads(raw)
+            if not isinstance(buses_data, list):
+                logger.warning("LLM returned non-list for buses")
+                return []
+
+            return self._format_options(buses_data, departure, arrival, date)
+
+        except (json.JSONDecodeError, Exception) as e:
+            logger.error(f"Bus search LLM error: {e}")
+            return []
+
+    def _format_options(self, buses_data: list, departure: str, arrival: str, date) -> list:
+        """Convert LLM response into TravelOption-compatible dicts."""
         base_dt = datetime.combine(date, datetime.min.time())
         options = []
 
-        num_buses = random.randint(3, 5)
-        # Use international operators for non-domestic routes
-        if is_known_domestic:
-            available_operators = [op for op in BUS_OPERATORS if op['code'] in ('RB', 'VRL', 'SRS', 'OT', 'KPN', 'GL')]
-        else:
-            available_operators = [op for op in BUS_OPERATORS if op['code'] in ('FLX', 'NX', 'GL')]
-        used_operators = random.sample(available_operators, min(num_buses, len(available_operators)))
-
-        # Buses typically depart in evening / night for long routes
-        departure_hours = [18, 19, 20, 21, 22, 23] if route['duration'] > 600 else [6, 8, 10, 14, 17, 20]
-        departure_times = sorted([
-            base_dt + timedelta(hours=random.choice(departure_hours))
-            for _ in range(len(used_operators))
-        ])
-
-        for i, operator in enumerate(used_operators):
-            dep_time = departure_times[i]
-            dur = route['duration'] + random.randint(-30, 60)
-            dur = max(dur, 180)
-            arr_time = dep_time + timedelta(minutes=dur)
-
-            price_mult = random.uniform(0.7, 1.4)
-            price_inr = Decimal(str(round(route['base_price'] * price_mult, -1)))
-            price_usd = round(price_inr / Decimal('83.5'), 2)
-
-            bus_type = random.choice([
-                'AC Seater', 'AC Sleeper', 'Non-AC Seater',
-                'Volvo Multi-Axle', 'AC Semi-Sleeper',
-            ])
-
-            if 'Volvo' in bus_type or 'Sleeper' in bus_type:
-                price_inr = price_inr * Decimal('1.4')
+        for b in buses_data:
+            try:
+                dep_hour = int(b.get('departure_hour', 18))
+                dep_min = int(b.get('departure_minute', 0))
+                dep_time = base_dt + timedelta(hours=dep_hour, minutes=dep_min)
+                dur = int(b.get('duration_minutes', 480))
+                arr_time = dep_time + timedelta(minutes=dur)
+                price_inr = Decimal(str(int(b.get('price_inr', 1200))))
                 price_usd = round(price_inr / Decimal('83.5'), 2)
 
-            stops = random.randint(2, 6)
-
-            # Buses are lower carbon than flights but more than trains
-            carbon = round(dur * 0.04, 1)
-
-            options.append({
-                'transport_type': 'bus',
-                'provider_name': operator['name'],
-                'route_number': f"{operator['code']}-{random.randint(100, 999)}",
-                'departure_city': departure,
-                'departure_station': TERMINALS.get(departure, f'{departure} Bus Terminal'),
-                'arrival_city': arrival,
-                'arrival_station': TERMINALS.get(arrival, f'{arrival} Bus Terminal'),
-                'departure_time': dep_time,
-                'arrival_time': arr_time,
-                'duration_minutes': dur,
-                'price_inr': price_inr,
-                'price_usd': price_usd,
-                'stops': stops,
-                'stop_details': [],
-                'cabin_class': bus_type,
-                'carbon_kg': carbon,
-                'delay_risk': round(random.uniform(0.10, 0.35), 2),
-                'amenities': self._bus_amenities(bus_type),
-                'is_mock': True,
-            })
+                options.append({
+                    'transport_type': 'bus',
+                    'provider_name': b.get('provider_name', 'Bus Service'),
+                    'route_number': str(b.get('route_number', '')),
+                    'departure_city': departure,
+                    'departure_station': b.get('departure_station', f'{departure} Bus Terminal'),
+                    'arrival_city': arrival,
+                    'arrival_station': b.get('arrival_station', f'{arrival} Bus Terminal'),
+                    'departure_time': dep_time,
+                    'arrival_time': arr_time,
+                    'duration_minutes': dur,
+                    'price_inr': price_inr,
+                    'price_usd': price_usd,
+                    'stops': int(b.get('stops', 2)),
+                    'stop_details': [],
+                    'cabin_class': b.get('cabin_class', 'Standard'),
+                    'carbon_kg': float(b.get('carbon_kg', round(dur * 0.04, 1))),
+                    'delay_risk': min(1.0, float(b.get('delay_risk', 0.15))),
+                    'amenities': b.get('amenities', ['Luggage storage']),
+                    'is_mock': False,
+                })
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Skipping malformed bus option: {e}")
+                continue
 
         return options
-
-    def _bus_amenities(self, bus_type):
-        amenities = ['Luggage storage']
-        if 'AC' in bus_type:
-            amenities.append('Air conditioning')
-        if 'Volvo' in bus_type:
-            amenities.extend(['Charging point', 'Reclining seats', 'Reading light'])
-        if 'Sleeper' in bus_type:
-            amenities.extend(['Blanket', 'Curtain'])
-        if random.random() > 0.5:
-            amenities.append('Water bottle')
-        return amenities

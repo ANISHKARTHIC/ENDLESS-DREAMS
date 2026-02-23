@@ -18,10 +18,11 @@ logger = logging.getLogger('ai_engine')
 
 
 class LLMLayer:
-    """LLM integration — Ollama (local) → Anthropic Claude → OpenAI → keyword fallback."""
+    """LLM integration — Ollama (local) → Anthropic Claude → Groq → OpenAI → keyword fallback."""
 
     def __init__(self):
         self.api_key = getattr(settings, 'ANTHROPIC_API_KEY', '') or getattr(settings, 'OPENAI_API_KEY', '')
+        self.groq_key = getattr(settings, 'GROQ_API_KEY', '')
         self.client = None
         self._provider = 'fallback'
 
@@ -51,7 +52,20 @@ class LLMLayer:
             except ImportError:
                 logger.warning("anthropic package not installed — run: pip install anthropic")
 
-        # Priority 3: OpenAI
+        # Priority 3: Groq (fast inference)
+        if self._provider == 'fallback' and self.groq_key:
+            try:
+                import openai
+                self.client = openai.OpenAI(
+                    base_url='https://api.groq.com/openai/v1',
+                    api_key=self.groq_key,
+                )
+                self._provider = 'groq'
+                logger.info('LLM: Using Groq')
+            except ImportError:
+                logger.warning("openai package not installed for Groq")
+
+        # Priority 4: OpenAI
         if self._provider == 'fallback' and self.api_key and not self.api_key.startswith('sk-ant-'):
             try:
                 import openai
@@ -85,6 +99,18 @@ class LLMLayer:
                 # Ollama via OpenAI-compatible endpoint
                 response = self.client.chat.completions.create(
                     model=getattr(self, '_ollama_model', 'llama3.2'),
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    max_tokens=max_tokens,
+                    temperature=0.3,
+                )
+                return response.choices[0].message.content
+            elif self._provider == 'groq':
+                # Groq via OpenAI-compatible endpoint
+                response = self.client.chat.completions.create(
+                    model='llama-3.3-70b-versatile',
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},

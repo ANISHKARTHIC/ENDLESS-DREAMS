@@ -1,24 +1,67 @@
 """
-Booking Insights Service — Price window detection and smart recommendations.
+Booking Insights Service — AI-powered price insights and recommendations.
 
-Analyzes travel and accommodation pricing to provide actionable booking advice:
-- Best price windows (time-sensitive deals)
-- Day-specific cost predictions
+Uses LLM to generate city-specific, context-aware booking insights:
+- Best price windows (time-sensitive advice)
+- Day-specific cost predictions based on real-world knowledge
 - Budget allocation recommendations
-- Savings tips
-
-Uses mock data when no external pricing API is configured.
+- City-specific savings tips
 """
-import random
+import json
 import logging
 from datetime import datetime, timedelta, date as dt_date
 from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
+INSIGHTS_PROMPT = """You are a travel budget advisor with deep knowledge of travel costs worldwide.
+Given a trip to {city} from {start_date} to {end_date} with a budget of ${budget_usd} USD, generate actionable booking insights.
+
+Consider:
+- Real-world pricing for {city} (accommodation, food, transport, attractions)
+- Seasonal pricing trends for the travel dates
+- Known free/cheap days at popular attractions
+- Local transport passes and deals
+- Typical crowd patterns
+
+Return ONLY valid JSON (no markdown) with this structure:
+{{
+  "price_alerts": [
+    {{
+      "type": "activity_deal|accommodation_pricing|crowd_insight|transport_deal",
+      "severity": "high|medium|low",
+      "title": "concise alert title",
+      "description": "actionable description specific to {city}",
+      "potential_savings_usd": number,
+      "action": "Book Now|Lock Rate|View Schedule|Compare"
+    }}
+  ],
+  "savings_tips": [
+    {{
+      "category": "Accommodation|Dining|Transport|Timing|Booking|Budget",
+      "tip": "specific tip for {city} with real details"
+    }}
+  ],
+  "daily_activity_cost_usd": estimated average daily activity spend in {city},
+  "food_cost_per_day_usd": estimated daily food cost in {city}
+}}
+
+Provide 2-3 price alerts and 4-5 savings tips. Be specific to {city} — mention real places, transit systems, and local knowledge.
+"""
+
 
 class BookingInsightsService:
-    """Generates booking insights and price-window recommendations."""
+    """Generates AI-powered booking insights and recommendations."""
+
+    def __init__(self):
+        self._llm = None
+
+    def _get_llm(self):
+        """Lazy-load LLM layer."""
+        if self._llm is None:
+            from ai_engine.llm_layer import LLMLayer
+            self._llm = LLMLayer()
+        return self._llm
 
     def generate_insights(
         self,
@@ -30,89 +73,84 @@ class BookingInsightsService:
         travel_cost: float = 0,
         num_activities: int = 0,
     ) -> Dict[str, Any]:
-        """
-        Generate comprehensive booking insights for a trip.
-
-        Returns:
-            Dict with 'price_alerts', 'daily_budget', 'savings_tips', 'booking_windows'
-        """
+        """Generate comprehensive booking insights for a trip."""
         duration = (end_date - start_date).days + 1
 
+        # Try LLM-powered insights first
+        llm_insights = self._get_llm_insights(city, start_date, end_date, budget_usd)
+
+        # Calculate daily budget breakdown
+        daily_budget = self._calculate_daily_budget(
+            budget_usd, duration, accommodation_cost, travel_cost
+        )
+
+        # Generate cost forecast using LLM's cost estimates
+        daily_activity_cost = llm_insights.get('daily_activity_cost_usd', daily_budget['daily_activity_budget_usd'])
+        food_cost = llm_insights.get('food_cost_per_day_usd', daily_budget['breakdown']['meals'])
+
+        cost_forecast = self._generate_cost_forecast(
+            start_date, duration, budget_usd, accommodation_cost,
+            travel_cost, daily_activity_cost, food_cost
+        )
+
         return {
-            "price_alerts": self._generate_price_alerts(city, start_date, duration),
-            "daily_budget": self._calculate_daily_budget(
-                budget_usd, duration, accommodation_cost, travel_cost
-            ),
-            "savings_tips": self._generate_savings_tips(
-                city, budget_usd, duration, accommodation_cost
-            ),
-            "booking_windows": self._detect_booking_windows(
-                city, start_date, duration
-            ),
-            "cost_forecast": self._generate_cost_forecast(
-                city, start_date, duration, budget_usd
-            ),
-            "is_mock": True,
+            "price_alerts": llm_insights.get('price_alerts', []),
+            "daily_budget": daily_budget,
+            "savings_tips": llm_insights.get('savings_tips', []),
+            "booking_windows": self._generate_booking_windows(start_date, duration, daily_activity_cost),
+            "cost_forecast": cost_forecast,
+            "is_mock": False,
         }
 
-    def _generate_price_alerts(
-        self, city: str, start_date: dt_date, duration: int
-    ) -> List[Dict[str, Any]]:
-        """Generate time-sensitive price alerts."""
-        random.seed(hash(f"{city}{start_date}") % (2**32))
-        alerts = []
-        now = datetime.now()
+    def _get_llm_insights(self, city: str, start_date, end_date, budget_usd: float) -> dict:
+        """Get city-specific insights from LLM."""
+        try:
+            llm = self._get_llm()
+            system_prompt = INSIGHTS_PROMPT.format(
+                city=city,
+                start_date=start_date.isoformat(),
+                end_date=end_date.isoformat(),
+                budget_usd=budget_usd,
+            )
+            user_prompt = (
+                f"Generate booking insights for a trip to {city} "
+                f"from {start_date} to {end_date} with ${budget_usd} total budget."
+            )
+            raw = llm._call_llm(system_prompt, user_prompt, max_tokens=1200)
 
-        # Activity deal on a random day
-        deal_day = random.randint(2, max(2, duration))
-        discount = random.randint(15, 40)
-        hours_left = random.randint(4, 24)
-        alerts.append({
-            "type": "activity_deal",
-            "severity": "high" if discount > 25 else "medium",
-            "title": f"Day {deal_day} activity — {discount}% off detected",
-            "description": (
-                f"Best price window detected for Day {deal_day} activity. "
-                f"Booking recommended within next {hours_left} hours."
-            ),
-            "expires_in_hours": hours_left,
-            "potential_savings_usd": round(random.uniform(8, 35), 2),
-            "action": "Book Now",
-        })
+            # Clean markdown wrapping
+            raw = raw.strip()
+            if raw.startswith('```'):
+                raw = raw.split('\n', 1)[1] if '\n' in raw else raw[3:]
+                raw = raw.rsplit('```', 1)[0]
+            raw = raw.strip()
 
-        # Early-bird accommodation
-        days_until = (start_date - now.date()).days if start_date > now.date() else 0
-        if days_until > 7:
-            savings = random.randint(10, 25)
-            alerts.append({
+            return json.loads(raw)
+
+        except Exception as e:
+            logger.error(f"LLM insights error: {e}")
+            return self._fallback_insights(city, budget_usd)
+
+    def _fallback_insights(self, city: str, budget_usd: float) -> dict:
+        """Basic insights when LLM is unavailable."""
+        return {
+            "price_alerts": [{
                 "type": "accommodation_pricing",
                 "severity": "medium",
-                "title": f"Hotel prices may rise {savings}% closer to travel date",
-                "description": (
-                    f"Current rates for {city} are below the 30-day average. "
-                    f"Booking now could save approximately ${random.randint(20, 80)} total."
-                ),
-                "expires_in_hours": days_until * 24,
-                "potential_savings_usd": round(random.uniform(20, 80), 2),
+                "title": f"Book {city} accommodation early for best rates",
+                "description": f"Prices in {city} tend to increase closer to travel dates. Book now to lock in current rates.",
+                "potential_savings_usd": round(budget_usd * 0.1, 2),
                 "action": "Lock Rate",
-            })
-
-        # Low crowd window
-        low_crowd_day = random.randint(1, max(1, duration))
-        alerts.append({
-            "type": "crowd_insight",
-            "severity": "low",
-            "title": f"Day {low_crowd_day}: Low crowd window detected",
-            "description": (
-                f"Heritage sites on Day {low_crowd_day} have predicted low crowds "
-                f"between 9:00-11:30 AM. Visit early for the best experience."
-            ),
-            "expires_in_hours": None,
-            "potential_savings_usd": 0,
-            "action": "View Schedule",
-        })
-
-        return alerts
+            }],
+            "savings_tips": [
+                {"category": "Booking", "tip": "Book attraction tickets online 2-3 days in advance for 15-25% savings vs walk-in prices."},
+                {"category": "Transport", "tip": f"Check if {city} offers multi-day transit passes for significant savings on local transport."},
+                {"category": "Dining", "tip": f"Explore local markets and street food in {city} for authentic meals at a fraction of restaurant prices."},
+                {"category": "Timing", "tip": "Visit popular attractions during early morning hours (before 10 AM) for shorter queues."},
+            ],
+            "daily_activity_cost_usd": round(budget_usd * 0.15, 2),
+            "food_cost_per_day_usd": round(budget_usd * 0.08, 2),
+        }
 
     def _calculate_daily_budget(
         self,
@@ -139,117 +177,66 @@ class BookingInsightsService:
             },
         }
 
-    def _generate_savings_tips(
-        self,
-        city: str,
-        budget_usd: float,
-        duration: int,
-        accommodation_cost: float,
-    ) -> List[Dict[str, str]]:
-        """Generate city-specific savings tips."""
-        random.seed(hash(city) % (2**32))
-
-        base_tips = [
-            {
-                "category": "Accommodation",
-                "tip": (
-                    "Stay within 1.5 km of major attractions to reduce daily transport costs "
-                    "by up to 35%. The AI selected your hotel for optimal proximity."
-                ),
-            },
-            {
-                "category": "Timing",
-                "tip": (
-                    "Visit popular sites during the first time slot (9:00-11:00 AM) "
-                    "when crowds are lowest and ticket queues are shorter."
-                ),
-            },
-            {
-                "category": "Dining",
-                "tip": (
-                    f"Set lunch near your accommodation to reduce midday travel time. "
-                    f"Budget meals in {city} average $8-15 per person."
-                ),
-            },
-            {
-                "category": "Booking",
-                "tip": (
-                    "Book attraction tickets online 2-3 days in advance for the "
-                    "best prices. Last-minute walk-in rates are typically 15-25% higher."
-                ),
-            },
-            {
-                "category": "Transport",
-                "tip": (
-                    f"Consider a {duration}-day transit pass if available in {city}. "
-                    f"Usually saves 40% over individual tickets for trips over 3 days."
-                ),
-            },
-        ]
-
-        # Add budget-specific tip
-        daily = budget_usd / max(1, duration)
-        if daily < 100:
-            base_tips.append({
-                "category": "Budget",
-                "tip": (
-                    "Your budget is tight — prioritize free attractions and "
-                    "street food. Many world-class museums offer free entry windows."
-                ),
-            })
-
-        return base_tips[:5]
-
-    def _detect_booking_windows(
-        self, city: str, start_date: dt_date, duration: int
+    def _generate_booking_windows(
+        self, start_date: dt_date, duration: int, daily_cost: float
     ) -> List[Dict[str, Any]]:
-        """Detect optimal booking windows for each day's activities."""
-        random.seed(hash(f"{city}{start_date}_windows") % (2**32))
+        """Generate booking windows based on day-of-week patterns."""
         windows = []
-
         for day in range(1, duration + 1):
             day_date = start_date + timedelta(days=day - 1)
-            current_price = round(random.uniform(15, 45), 2)
-            trend = random.choice(["rising", "stable", "falling"])
-            conf = random.randint(60, 95)
+            weekday = day_date.weekday()
+
+            # Weekends tend to be pricier for activities
+            if weekday >= 5:  # Saturday/Sunday
+                trend = "rising"
+                cost_mult = 1.15
+                rec = "Book weekend activities in advance — prices tend to be higher"
+            elif weekday == 0:  # Monday
+                trend = "falling"
+                cost_mult = 0.85
+                rec = "Mondays often have deals — many museums offer discounts"
+            else:
+                trend = "stable"
+                cost_mult = 1.0
+                rec = "Standard weekday pricing — safe to book anytime"
 
             windows.append({
                 "day": day,
                 "date": day_date.isoformat(),
-                "avg_activity_cost_usd": current_price,
+                "avg_activity_cost_usd": round(daily_cost * cost_mult, 2),
                 "price_trend": trend,
-                "confidence_pct": conf,
-                "recommendation": (
-                    "Book now — prices rising"
-                    if trend == "rising"
-                    else "Prices stable — safe to wait"
-                    if trend == "stable"
-                    else "Prices dropping — consider waiting 24h"
-                ),
+                "confidence_pct": 75,
+                "recommendation": rec,
             })
-
         return windows
 
     def _generate_cost_forecast(
-        self, city: str, start_date: dt_date, duration: int, budget_usd: float
+        self, start_date: dt_date, duration: int, budget_usd: float,
+        accommodation_cost: float, travel_cost: float,
+        daily_activity_cost: float, food_cost: float,
     ) -> List[Dict[str, Any]]:
-        """Generate a per-day cost forecast for the trip."""
-        random.seed(hash(f"{city}{start_date}_forecast") % (2**32))
-        daily_budget = budget_usd / max(1, duration)
+        """Generate a per-day cost forecast."""
+        accommodation_daily = accommodation_cost / max(1, duration)
         forecast = []
-        cumulative = 0
+        cumulative = travel_cost  # Travel cost is upfront
 
         for day in range(1, duration + 1):
-            # Some variation per day
-            factor = 0.7 + random.random() * 0.6  # 70%-130% of daily avg
-            predicted = round(daily_budget * factor, 2)
+            day_date = start_date + timedelta(days=day - 1)
+            weekday = day_date.weekday()
+
+            # Weekend premium
+            mult = 1.15 if weekday >= 5 else 1.0
+            predicted = round(
+                (accommodation_daily + daily_activity_cost * mult + food_cost) , 2
+            )
             cumulative += predicted
+
             forecast.append({
                 "day": day,
                 "predicted_cost_usd": predicted,
                 "cumulative_usd": round(cumulative, 2),
                 "budget_remaining_usd": round(budget_usd - cumulative, 2),
-                "on_track": cumulative <= (daily_budget * day * 1.1),
+                "on_track": cumulative <= (budget_usd * day / duration * 1.1),
             })
 
         return forecast

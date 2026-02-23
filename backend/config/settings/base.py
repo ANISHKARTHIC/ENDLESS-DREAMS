@@ -180,6 +180,9 @@ AMADEUS_API_KEY = os.environ.get('AMADEUS_API_KEY', '')
 AMADEUS_API_SECRET = os.environ.get('AMADEUS_API_SECRET', '')
 EXCHANGE_RATE_API_KEY = os.environ.get('EXCHANGE_RATE_API_KEY', '')
 
+# Groq (fast LLM inference)
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
+
 # Ollama (local LLM)
 OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434')
 OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'llama3.2')

@@ -1,6 +1,11 @@
-"""Trains service - search for train options with mock fallback."""
+"""
+Trains service — AI-powered train search using LLM for real-world knowledge.
+
+Uses LLM to generate realistic train options based on actual operators,
+routes, stations, pricing, and durations for any city pair worldwide.
+"""
+import json
 import logging
-import random
 from datetime import datetime, timedelta
 from decimal import Decimal
 from django.conf import settings
@@ -8,173 +13,128 @@ from .base import BaseService
 
 logger = logging.getLogger(__name__)
 
-# Indian trains data (domestic legs, or international high-speed concepts)
-TRAIN_OPERATORS = [
-    {'name': 'Indian Railways (Rajdhani)', 'code': 'RAJD', 'rating': 4.0},
-    {'name': 'Indian Railways (Shatabdi)', 'code': 'SHTB', 'rating': 4.1},
-    {'name': 'Indian Railways (Duronto)', 'code': 'DRNT', 'rating': 3.8},
-    {'name': 'Vande Bharat Express', 'code': 'VB', 'rating': 4.5},
-    {'name': 'Eurostar', 'code': 'ES', 'rating': 4.6},
-    {'name': 'Shinkansen', 'code': 'JR', 'rating': 4.9},
-    {'name': 'TGV', 'code': 'TGV', 'rating': 4.5},
-    {'name': 'Amtrak Acela', 'code': 'ACL', 'rating': 3.9},
-]
+TRAIN_SEARCH_PROMPT = """You are a travel data API. Given two cities and a date, return realistic train options that actually exist or could realistically exist on that route.
 
-# Domestic Indian routes (connect to international departure)
-DOMESTIC_ROUTES = {
-    ('Delhi', 'Mumbai'): {'duration': 960, 'base_price': 2500},
-    ('Delhi', 'Bangalore'): {'duration': 1500, 'base_price': 3200},
-    ('Delhi', 'Chennai'): {'duration': 1680, 'base_price': 3000},
-    ('Delhi', 'Kolkata'): {'duration': 1020, 'base_price': 2800},
-    ('Mumbai', 'Delhi'): {'duration': 960, 'base_price': 2500},
-    ('Mumbai', 'Bangalore'): {'duration': 900, 'base_price': 2200},
-    ('Mumbai', 'Chennai'): {'duration': 1200, 'base_price': 2600},
-    ('Bangalore', 'Chennai'): {'duration': 300, 'base_price': 800},
-    ('Chennai', 'Bangalore'): {'duration': 300, 'base_price': 800},
-    ('Chennai', 'Delhi'): {'duration': 1680, 'base_price': 3000},
-    ('Chennai', 'Mumbai'): {'duration': 1200, 'base_price': 2600},
-    ('Chennai', 'Kolkata'): {'duration': 1620, 'base_price': 2900},
-    ('Kolkata', 'Delhi'): {'duration': 1020, 'base_price': 2800},
-    ('Kolkata', 'Chennai'): {'duration': 1620, 'base_price': 2900},
-    ('Bangalore', 'Delhi'): {'duration': 1500, 'base_price': 3200},
-    ('Bangalore', 'Mumbai'): {'duration': 900, 'base_price': 2200},
-    ('Hyderabad', 'Chennai'): {'duration': 720, 'base_price': 1500},
-    ('Hyderabad', 'Bangalore'): {'duration': 720, 'base_price': 1600},
-    ('Hyderabad', 'Delhi'): {'duration': 1080, 'base_price': 2500},
-    ('Hyderabad', 'Mumbai'): {'duration': 900, 'base_price': 2000},
-}
+Use your real-world knowledge of:
+- Actual train operators for that region (e.g., Indian Railways, Eurostar, Shinkansen, TGV, Amtrak, Deutsche Bahn, Trenitalia, RENFE, etc.)
+- Real station names for those cities
+- Realistic journey durations based on actual distances
+- Realistic pricing in INR (use current approximate conversion rates)
+- Appropriate cabin classes for that operator
+- Real route numbers or realistic format for that operator
 
-# International high-speed (for destination cities served by rail)
-INTERNATIONAL_ROUTES = {
-    ('London', 'Paris'): {'duration': 135, 'base_price': 8500, 'operator': 'Eurostar'},
-    ('Paris', 'London'): {'duration': 135, 'base_price': 8500, 'operator': 'Eurostar'},
-    ('Tokyo', 'Osaka'): {'duration': 150, 'base_price': 7000, 'operator': 'Shinkansen'},
-}
+Return ONLY a JSON array (no markdown, no explanation) with 2-4 train options. Each object must have:
+{{
+  "provider_name": "actual operator name",
+  "route_number": "realistic train number",
+  "departure_station": "real station name in {departure}",
+  "arrival_station": "real station name in {arrival}",
+  "departure_hour": hour (0-23),
+  "departure_minute": minute (0-59),
+  "duration_minutes": realistic duration in minutes,
+  "price_inr": price in INR (integer),
+  "cabin_class": "appropriate class for this operator",
+  "stops": number of intermediate stops (integer),
+  "amenities": ["list", "of", "amenities"],
+  "carbon_kg": estimated CO2 in kg (float),
+  "delay_risk": probability 0.0-0.3 (float)
+}}
 
-STATIONS = {
-    'Delhi': 'New Delhi Railway Station (NDLS)',
-    'Mumbai': 'Mumbai Central (BCT)',
-    'Bangalore': 'Bengaluru City Junction (SBC)',
-    'Chennai': 'Chennai Central (MAS)',
-    'Kolkata': 'Howrah Junction (HWH)',
-    'Paris': 'Gare du Nord',
-    'London': 'St Pancras International',
-    'Tokyo': 'Tokyo Station',
-    'New York': 'Penn Station',
-}
+If no train service exists between these cities (e.g., across oceans), return an empty array [].
+"""
 
 
 class TrainsService(BaseService):
-    """Train search with mock data."""
+    """Train search using LLM for real-world accurate data."""
 
     BASE_URL = ''
 
     def __init__(self):
         super().__init__()
+        self._llm = None
+
+    def _get_llm(self):
+        """Lazy-load LLM layer."""
+        if self._llm is None:
+            from ai_engine.llm_layer import LLMLayer
+            self._llm = LLMLayer()
+        return self._llm
 
     def search(self, departure: str, arrival: str, date) -> list:
-        """Search train options."""
-        return self._mock_trains(departure, arrival, date)
-
-    def _mock_trains(self, departure: str, arrival: str, date) -> list:
-        """Generate realistic mock train options."""
-        route_key = (departure, arrival)
-        reverse_key = (arrival, departure)
-
-        route = (
-            DOMESTIC_ROUTES.get(route_key)
-            or DOMESTIC_ROUTES.get(reverse_key)
-            or INTERNATIONAL_ROUTES.get(route_key)
-            or INTERNATIONAL_ROUTES.get(reverse_key)
-        )
-
-        # Determine if this is a known or generic route
-        is_known_international = route_key in INTERNATIONAL_ROUTES or reverse_key in INTERNATIONAL_ROUTES
-        is_known_domestic = route_key in DOMESTIC_ROUTES or reverse_key in DOMESTIC_ROUTES
-
-        if not route:
-            # Generate a generic train route for any city pair
-            route = {'duration': random.randint(300, 960), 'base_price': random.randint(1500, 6000)}
-
+        """Search train options using LLM-generated real-world data."""
         if isinstance(date, str):
             date = datetime.strptime(date, '%Y-%m-%d').date()
 
+        try:
+            llm = self._get_llm()
+            user_prompt = (
+                f"Find realistic train options from {departure} to {arrival} "
+                f"on {date.strftime('%Y-%m-%d')} ({date.strftime('%A')}). "
+                f"Use real operators, stations, and pricing for this specific route."
+            )
+
+            system_prompt = TRAIN_SEARCH_PROMPT.format(
+                departure=departure, arrival=arrival
+            )
+
+            raw = llm._call_llm(system_prompt, user_prompt, max_tokens=1500)
+
+            # Parse JSON from response
+            raw = raw.strip()
+            if raw.startswith('```'):
+                raw = raw.split('\n', 1)[1] if '\n' in raw else raw[3:]
+                raw = raw.rsplit('```', 1)[0]
+            raw = raw.strip()
+
+            trains_data = json.loads(raw)
+            if not isinstance(trains_data, list):
+                logger.warning("LLM returned non-list for trains")
+                return []
+
+            return self._format_options(trains_data, departure, arrival, date)
+
+        except (json.JSONDecodeError, Exception) as e:
+            logger.error(f"Train search LLM error: {e}")
+            return []
+
+    def _format_options(self, trains_data: list, departure: str, arrival: str, date) -> list:
+        """Convert LLM response into TravelOption-compatible dicts."""
         base_dt = datetime.combine(date, datetime.min.time())
         options = []
 
-        # Generate 2-4 train options
-        num_trains = random.randint(2, 4)
-        is_international = is_known_international or (not is_known_domestic)
-
-        if is_international:
-            operators = [op for op in TRAIN_OPERATORS if op['code'] in ('ES', 'JR', 'TGV', 'ACL')]
-        else:
-            operators = [op for op in TRAIN_OPERATORS if op['code'] in ('RAJD', 'SHTB', 'DRNT', 'VB')]
-
-        used_operators = random.sample(operators, min(num_trains, len(operators)))
-
-        departure_times = sorted([
-            base_dt + timedelta(hours=random.choice([5, 6, 8, 10, 14, 16, 20, 22]))
-            for _ in range(len(used_operators))
-        ])
-
-        for i, operator in enumerate(used_operators):
-            dep_time = departure_times[i]
-            dur = route['duration'] + random.randint(-30, 45)
-            dur = max(dur, 60)
-            arr_time = dep_time + timedelta(minutes=dur)
-
-            price_mult = random.uniform(0.8, 1.3)
-            price_inr = Decimal(str(round(route['base_price'] * price_mult, -1)))
-            price_usd = round(price_inr / Decimal('83.5'), 2)
-
-            cabin = random.choice(['Sleeper', 'AC 3-Tier', 'AC 2-Tier', 'AC Chair Car'])
-            if is_international:
-                cabin = random.choice(['Standard', 'Standard Premier', 'Business Premier'])
-
-            if 'Premier' in cabin or 'Business' in cabin:
-                price_inr = price_inr * Decimal('1.8')
+        for t in trains_data:
+            try:
+                dep_hour = int(t.get('departure_hour', 8))
+                dep_min = int(t.get('departure_minute', 0))
+                dep_time = base_dt + timedelta(hours=dep_hour, minutes=dep_min)
+                dur = int(t.get('duration_minutes', 300))
+                arr_time = dep_time + timedelta(minutes=dur)
+                price_inr = Decimal(str(int(t.get('price_inr', 2000))))
                 price_usd = round(price_inr / Decimal('83.5'), 2)
 
-            stops = random.randint(0, 3) if not is_international else random.randint(0, 1)
-
-            # Trains are much greener
-            carbon = round(dur * 0.02, 1)
-
-            options.append({
-                'transport_type': 'train',
-                'provider_name': operator['name'],
-                'route_number': f"{operator['code']}{random.randint(10000, 99999)}",
-                'departure_city': departure,
-                'departure_station': STATIONS.get(departure, f'{departure} Station'),
-                'arrival_city': arrival,
-                'arrival_station': STATIONS.get(arrival, f'{arrival} Station'),
-                'departure_time': dep_time,
-                'arrival_time': arr_time,
-                'duration_minutes': dur,
-                'price_inr': price_inr,
-                'price_usd': price_usd,
-                'stops': stops,
-                'stop_details': [],
-                'cabin_class': cabin,
-                'carbon_kg': carbon,
-                'delay_risk': round(random.uniform(0.05, 0.20), 2),
-                'amenities': self._train_amenities(cabin, is_international),
-                'is_mock': True,
-            })
+                options.append({
+                    'transport_type': 'train',
+                    'provider_name': t.get('provider_name', 'Railway'),
+                    'route_number': str(t.get('route_number', '')),
+                    'departure_city': departure,
+                    'departure_station': t.get('departure_station', f'{departure} Station'),
+                    'arrival_city': arrival,
+                    'arrival_station': t.get('arrival_station', f'{arrival} Station'),
+                    'departure_time': dep_time,
+                    'arrival_time': arr_time,
+                    'duration_minutes': dur,
+                    'price_inr': price_inr,
+                    'price_usd': price_usd,
+                    'stops': int(t.get('stops', 0)),
+                    'stop_details': [],
+                    'cabin_class': t.get('cabin_class', 'Standard'),
+                    'carbon_kg': float(t.get('carbon_kg', round(dur * 0.02, 1))),
+                    'delay_risk': min(1.0, float(t.get('delay_risk', 0.1))),
+                    'amenities': t.get('amenities', ['Restroom']),
+                    'is_mock': False,
+                })
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Skipping malformed train option: {e}")
+                continue
 
         return options
-
-    def _train_amenities(self, cabin, is_international):
-        amenities = ['Restroom']
-        if is_international:
-            amenities.extend(['WiFi', 'Power outlet', 'Dining car'])
-            if 'Premier' in cabin or 'Business' in cabin:
-                amenities.extend(['Meal included', 'Extra legroom'])
-        else:
-            amenities.append('Pantry car')
-            if 'AC' in cabin:
-                amenities.extend(['Charging point', 'Blanket'])
-            if cabin == 'AC Chair Car':
-                amenities.append('Reclining seat')
-        return amenities
