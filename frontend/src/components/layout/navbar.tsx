@@ -44,15 +44,12 @@ export function Navbar() {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5 group">
               <div className="relative">
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/25 group-hover:shadow-primary/40 transition-shadow">
-                  <Plane className="h-4.5 w-4.5 text-white rotate-[-30deg]" />
-                </div>
-                <div className="absolute -top-1 -right-1 h-3 w-3">
-                  <Sparkles className="h-3 w-3 text-accent animate-pulse" />
+                <div className="h-9 w-9 rounded-xl bg-foreground flex items-center justify-center">
+                  <Plane className="h-4.5 w-4.5 text-background rotate-[-30deg]" />
                 </div>
               </div>
               <div className="hidden sm:block">
-                <span className="text-lg font-bold gradient-text tracking-tight">
+                <span className="text-lg font-bold text-foreground tracking-tight">
                   Endless Dreams
                 </span>
               </div>
@@ -212,7 +209,6 @@ export function Navbar() {
 
               <Link href="/dashboard" onClick={() => setMenuOpen(false)}>
                 <Button size="sm" className="w-full mt-2">
-                  <Sparkles className="h-3.5 w-3.5 mr-1.5" />
                   Plan a Trip
                 </Button>
               </Link>

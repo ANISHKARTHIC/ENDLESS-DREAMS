@@ -1,208 +1,190 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
-import { InteractiveGlobe } from "@/components/globe/interactive-globe";
 import {
-  Sparkles,
-  Zap,
-  Shield,
-  Map,
-  Brain,
   ArrowRight,
+  ArrowLeft,
   Globe,
+  Brain,
+  RefreshCw,
+  Map,
+  Shield,
   Cloud,
   Clock,
-  RefreshCw,
-  Plane,
-  Star,
+  Zap,
   MapPin,
-  TrendingUp,
+  Plane,
 } from "lucide-react";
 
-const fadeIn = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.6 },
-};
+/* ── Hero carousel slides ── */
+const HERO_SLIDES = [
+  {
+    image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
+    subtitle: "Be",
+    title: "Adventurous",
+    description: "Travel that adapts to you — in real-time.",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1920&q=80",
+    subtitle: "Discover",
+    title: "The World",
+    description: "100+ destinations, crafted by AI intelligence.",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1506929562872-bb421503ef21?w=1920&q=80",
+    subtitle: "Experience",
+    title: "Endless Dreams",
+    description: "Every moment optimized. Every journey unforgettable.",
+  },
+];
 
-const stagger = {
-  animate: { transition: { staggerChildren: 0.1 } },
-};
+/* ── Destination photo cards ── */
+const DESTINATIONS = [
+  { city: "Tokyo", country: "Japan", tag: "Trending", image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=600&q=75" },
+  { city: "Paris", country: "France", tag: "Popular", image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=600&q=75" },
+  { city: "Dubai", country: "UAE", tag: "Luxe", image: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=600&q=75" },
+  { city: "Bali", country: "Indonesia", tag: "Paradise", image: "https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=600&q=75" },
+  { city: "Rome", country: "Italy", tag: "Historic", image: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=600&q=75" },
+  { city: "New York", country: "USA", tag: "Iconic", image: "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=600&q=75" },
+  { city: "Singapore", country: "Singapore", tag: "Modern", image: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=600&q=75" },
+  { city: "Cape Town", country: "South Africa", tag: "Nature", image: "https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=600&q=75" },
+];
 
 export default function LandingPage() {
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  /* Auto-advance hero every 6s */
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const goNext = () => setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length);
+  const goPrev = () => setCurrentSlide((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length);
+
   return (
-    <div className="min-h-screen overflow-hidden">
+    <div className="min-h-screen bg-background text-foreground">
       <Navbar />
 
-      {/* Hero Section - Enhanced with Globe */}
-      <section className="relative pt-28 pb-20 px-4 overflow-hidden min-h-[90vh] flex items-center">
-        {/* Animated background */}
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute top-1/4 left-1/6 w-[500px] h-[500px] bg-primary/8 rounded-full blur-[120px] animate-pulse" />
-          <div className="absolute bottom-1/4 right-1/6 w-[500px] h-[500px] bg-accent/8 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: "1s" }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/3 rounded-full blur-[150px]" />
-          {/* Floating particles */}
-          <div className="floating-particles">
-            {Array.from({ length: 20 }).map((_, i) => (
-              <div
+      {/* ═══════════ HERO — Full-bleed photo carousel ═══════════ */}
+      <section className="relative h-screen w-full overflow-hidden">
+        {/* Background images */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentSlide}
+            initial={{ opacity: 0, scale: 1.08 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.2 }}
+            className="absolute inset-0"
+          >
+            <Image
+              src={HERO_SLIDES[currentSlide].image}
+              alt={HERO_SLIDES[currentSlide].title}
+              fill
+              priority
+              className="object-cover"
+              sizes="100vw"
+            />
+            {/* Dark overlay */}
+            <div className="absolute inset-0 bg-black/40" />
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Hero text */}
+        <div className="relative z-10 flex flex-col items-center justify-center h-full px-4 text-center">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentSlide}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.7 }}
+              className="max-w-3xl"
+            >
+              <p className="text-white/70 text-sm sm:text-base uppercase tracking-[0.3em] font-light mb-3">
+                {HERO_SLIDES[currentSlide].subtitle}
+              </p>
+              <h1 className="text-5xl sm:text-7xl lg:text-8xl font-bold text-white leading-[1.05] tracking-tight">
+                {HERO_SLIDES[currentSlide].title}
+              </h1>
+              <p className="mt-5 text-white/80 text-lg sm:text-xl max-w-xl mx-auto leading-relaxed font-light">
+                {HERO_SLIDES[currentSlide].description}
+              </p>
+            </motion.div>
+          </AnimatePresence>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="mt-10 flex items-center gap-4"
+          >
+            <Link href="/dashboard">
+              <Button
+                size="lg"
+                className="text-base px-10 py-3 bg-white text-black hover:bg-white/90 font-semibold shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-full"
+              >
+                Start Planning
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </Link>
+            <a href="#how-it-works">
+              <Button
+                size="lg"
+                variant="outline"
+                className="text-base px-8 py-3 border-white/40 text-white hover:bg-white/10 rounded-full"
+              >
+                Learn More
+              </Button>
+            </a>
+          </motion.div>
+
+          {/* Slide indicators */}
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-3">
+            {HERO_SLIDES.map((_, i) => (
+              <button
                 key={i}
-                className="particle"
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                  animationDelay: `${Math.random() * 5}s`,
-                  animationDuration: `${3 + Math.random() * 4}s`,
-                }}
+                onClick={() => setCurrentSlide(i)}
+                className={`h-1.5 rounded-full transition-all duration-500 ${
+                  i === currentSlide ? "w-10 bg-white" : "w-4 bg-white/40"
+                }`}
               />
             ))}
           </div>
-        </div>
 
-        <div className="max-w-7xl mx-auto w-full">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left - Text content */}
-            <motion.div
-              initial="initial"
-              animate="animate"
-              variants={stagger}
-            >
-              <motion.div variants={fadeIn} className="mb-6">
-                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-subtle text-sm font-medium text-muted-foreground border border-primary/10">
-                  <Sparkles className="h-3.5 w-3.5 text-primary" />
-                  AI-Powered Travel Intelligence
-                  <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-                </span>
-              </motion.div>
-
-              <motion.h1
-                variants={fadeIn}
-                className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08]"
-              >
-                Your Perfect Trip,
-                <br />
-                <span className="gradient-text">Endlessly Adapting</span>
-              </motion.h1>
-
-              <motion.p
-                variants={fadeIn}
-                className="mt-6 text-lg sm:text-xl text-muted-foreground max-w-xl leading-relaxed"
-              >
-                Our AI doesn&apos;t just plan your itinerary — it monitors weather,
-                traffic, and crowd data in real-time, dynamically replanning to ensure
-                every moment is optimized.
-              </motion.p>
-
-              <motion.div
-                variants={fadeIn}
-                className="mt-10 flex items-center gap-4 flex-wrap"
-              >
-                <Link href="/dashboard">
-                  <Button
-                    size="lg"
-                    className="text-base px-8 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all duration-300 hover:scale-[1.02]"
-                  >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Start Planning
-                  </Button>
-                </Link>
-                <a href="#how-it-works">
-                  <Button size="lg" variant="outline" className="text-base px-8 border-primary/20 hover:border-primary/40 hover:bg-primary/5">
-                    How It Works
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </a>
-              </motion.div>
-
-              {/* Stats row */}
-              <motion.div
-                variants={fadeIn}
-                className="mt-14 grid grid-cols-3 gap-8 max-w-md"
-              >
-                {[
-                  { value: "100+", label: "Destinations", icon: MapPin },
-                  { value: "7", label: "Continents", icon: Globe },
-                  { value: "Real-time", label: "Adaptation", icon: TrendingUp },
-                ].map((stat) => (
-                  <div key={stat.label} className="group">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <stat.icon className="h-4 w-4 text-primary" />
-                      <div className="text-2xl font-bold gradient-text">{stat.value}</div>
-                    </div>
-                    <div className="text-sm text-muted-foreground">{stat.label}</div>
-                  </div>
-                ))}
-              </motion.div>
-            </motion.div>
-
-            {/* Right - 3D Globe */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1, delay: 0.3 }}
-              className="hidden lg:flex justify-center items-center relative"
-            >
-              <div className="relative">
-                {/* Orbit rings */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-[420px] h-[420px] rounded-full border border-primary/10 animate-spin" style={{ animationDuration: "20s" }} />
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-[480px] h-[480px] rounded-full border border-accent/5 animate-spin" style={{ animationDuration: "30s", animationDirection: "reverse" }} />
-                </div>
-
-                {/* Globe */}
-                <InteractiveGlobe
-                  size={400}
-                  className="relative z-10"
-                  autoRotate={true}
-                />
-
-                {/* Floating badges around globe */}
-                <motion.div
-                  animate={{ y: [-5, 5, -5] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute -top-2 right-10 glass-card p-2.5 px-3.5 flex items-center gap-2 text-xs font-medium z-20"
-                >
-                  <Plane className="h-3.5 w-3.5 text-primary" />
-                  <span>Tokyo</span>
-                  <Star className="h-3 w-3 text-warning fill-warning" />
-                </motion.div>
-
-                <motion.div
-                  animate={{ y: [5, -5, 5] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute bottom-10 -left-4 glass-card p-2.5 px-3.5 flex items-center gap-2 text-xs font-medium z-20"
-                >
-                  <MapPin className="h-3.5 w-3.5 text-accent" />
-                  <span>Paris</span>
-                  <span className="text-success">✓</span>
-                </motion.div>
-
-                <motion.div
-                  animate={{ y: [-3, 7, -3] }}
-                  transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute top-1/2 -right-8 glass-card p-2.5 px-3.5 flex items-center gap-2 text-xs font-medium z-20"
-                >
-                  <Cloud className="h-3.5 w-3.5 text-primary" />
-                  <span>Live Weather</span>
-                </motion.div>
-              </div>
-            </motion.div>
-          </div>
+          {/* Carousel arrows */}
+          <button
+            onClick={goPrev}
+            className="absolute left-6 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/20 backdrop-blur-sm text-white/80 hover:bg-black/40 hover:text-white transition-all"
+            aria-label="Previous slide"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <button
+            onClick={goNext}
+            className="absolute right-6 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/20 backdrop-blur-sm text-white/80 hover:bg-black/40 hover:text-white transition-all"
+            aria-label="Next slide"
+          >
+            <ArrowRight className="h-5 w-5" />
+          </button>
         </div>
       </section>
 
-      {/* Trusted by section - Scrolling logos */}
-      <section className="py-8 border-y border-border/50 bg-muted/20">
+      {/* ═══════════ Trusted destinations strip ═══════════ */}
+      <section className="py-6 border-b border-border/40">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="flex items-center justify-center gap-12 flex-wrap opacity-50">
-            {["🗼 Paris", "🗽 New York", "🏯 Tokyo", "🕌 Dubai", "🏟️ Rome", "🌉 San Francisco", "🎡 London", "🏖️ Bali"].map((city) => (
-              <span key={city} className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+          <div className="flex items-center justify-center gap-10 flex-wrap">
+            {["Paris", "New York", "Tokyo", "Dubai", "Rome", "San Francisco", "London", "Bali"].map((city) => (
+              <span key={city} className="text-xs font-medium tracking-widest uppercase text-muted-foreground/60">
                 {city}
               </span>
             ))}
@@ -210,36 +192,34 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How it Works - Enhanced */}
+      {/* ═══════════ How it Works ═══════════ */}
       <section id="how-it-works" className="py-24 px-4">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-xs font-medium text-primary mb-4">
-              <Zap className="h-3 w-3" />
-              Simple & Powerful
-            </span>
+            <p className="text-xs tracking-[0.2em] uppercase text-muted-foreground mb-3">
+              Simple Process
+            </p>
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground">
               How It Works
             </h2>
-            <p className="mt-3 text-muted-foreground max-w-lg mx-auto">
-              Three simple steps to your dynamically optimized itinerary
+            <p className="mt-3 text-muted-foreground max-w-md mx-auto">
+              Three steps to your perfectly optimized itinerary
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-10">
             {[
               {
                 step: "01",
                 icon: Globe,
-                title: "Tell Us Your Dream",
+                title: "Choose Your Destination",
                 description:
                   "Search from 100+ destinations worldwide. Our interactive globe lets you explore and select your perfect destination.",
-                color: "from-primary to-blue-600",
               },
               {
                 step: "02",
@@ -247,7 +227,6 @@ export default function LandingPage() {
                 title: "AI Crafts Your Plan",
                 description:
                   "Our scoring engine evaluates every place using weighted interest matching, distance optimization, and risk analysis.",
-                color: "from-accent to-teal-600",
               },
               {
                 step: "03",
@@ -255,7 +234,6 @@ export default function LandingPage() {
                 title: "Real-time Adaptation",
                 description:
                   "Weather changes? Crowd surges? The replanner dynamically adjusts your itinerary while preserving your locked items.",
-                color: "from-purple-500 to-pink-500",
               },
             ].map((item, idx) => (
               <motion.div
@@ -263,19 +241,19 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: idx * 0.15 }}
-                className="glass-card p-8 text-center group hover:border-primary/20 transition-all duration-500 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1"
+                transition={{ delay: idx * 0.12 }}
+                className="text-center group"
               >
-                <div className="text-xs font-bold text-primary/50 mb-4">
-                  STEP {item.step}
+                <div className="text-[64px] font-bold text-muted-foreground/10 leading-none mb-4">
+                  {item.step}
                 </div>
-                <div className={`h-16 w-16 rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center mx-auto mb-5 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                  <item.icon className="h-8 w-8 text-white" />
+                <div className="h-14 w-14 rounded-full border border-border flex items-center justify-center mx-auto mb-5 group-hover:border-foreground/30 transition-colors duration-300">
+                  <item.icon className="h-6 w-6 text-foreground/70" />
                 </div>
-                <h3 className="text-lg font-bold text-foreground mb-2">
+                <h3 className="text-lg font-semibold text-foreground mb-2">
                   {item.title}
                 </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mx-auto">
                   {item.description}
                 </p>
               </motion.div>
@@ -284,9 +262,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features - Enhanced with gradient borders */}
-      <section id="features" className="py-24 px-4 relative">
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-transparent via-muted/30 to-transparent" />
+      {/* ═══════════ Features ═══════════ */}
+      <section id="features" className="py-24 px-4 bg-muted/30">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0 }}
@@ -294,14 +271,13 @@ export default function LandingPage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-xs font-medium text-accent mb-4">
-              <Brain className="h-3 w-3" />
-              Cutting Edge
-            </span>
+            <p className="text-xs tracking-[0.2em] uppercase text-muted-foreground mb-3">
+              What We Offer
+            </p>
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground">
               Intelligent Features
             </h2>
-            <p className="mt-3 text-muted-foreground max-w-lg mx-auto">
+            <p className="mt-3 text-muted-foreground max-w-md mx-auto">
               Every feature engineered for the perfect travel experience
             </p>
           </motion.div>
@@ -312,43 +288,37 @@ export default function LandingPage() {
                 icon: Brain,
                 title: "Weighted Scoring Engine",
                 description:
-                  "Score = (Interest × W1) + (Distance × W2) - (Risk × W3) - (Fatigue × W4). Dynamic weights adjust for budget and time pressure.",
-                gradient: "from-blue-500/10 to-blue-600/5",
+                  "Dynamic weights adjust for budget and time pressure with interest matching, distance optimization, and risk analysis.",
               },
               {
                 icon: Map,
                 title: "Route Optimization",
                 description:
                   "Nearest-neighbor heuristic with time-window constraints, opening hours validation, and distance-adjusted scoring.",
-                gradient: "from-green-500/10 to-green-600/5",
               },
               {
                 icon: Shield,
                 title: "Stability Index",
                 description:
                   "Real-time trip health from budget deviation, risk assessment, weather sensitivity, and schedule tightness.",
-                gradient: "from-purple-500/10 to-purple-600/5",
               },
               {
                 icon: Cloud,
                 title: "Weather Integration",
                 description:
                   "Live weather monitoring with 30-minute caching. Outdoor activities auto-swap during bad conditions.",
-                gradient: "from-cyan-500/10 to-cyan-600/5",
               },
               {
                 icon: Zap,
                 title: "Dynamic Replanning",
                 description:
                   "Only affected segments are replanned. Locked items stay untouched. Indoor alternatives get priority boosts.",
-                gradient: "from-amber-500/10 to-amber-600/5",
               },
               {
                 icon: Clock,
                 title: "Pace-Aware Scheduling",
                 description:
                   "Relaxed, moderate, or fast pace controls daily activity count, start times, and buffer durations.",
-                gradient: "from-rose-500/10 to-rose-600/5",
               },
             ].map((feature, idx) => (
               <motion.div
@@ -356,11 +326,11 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: idx * 0.08 }}
-                className={`p-6 rounded-2xl border border-border bg-gradient-to-br ${feature.gradient} hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group hover:-translate-y-0.5`}
+                transition={{ delay: idx * 0.06 }}
+                className="p-6 rounded-2xl border border-border bg-card hover:border-foreground/15 transition-all duration-300 group"
               >
-                <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
-                  <feature.icon className="h-5 w-5 text-primary" />
+                <div className="h-10 w-10 rounded-full border border-border flex items-center justify-center mb-4 group-hover:border-foreground/30 transition-colors">
+                  <feature.icon className="h-5 w-5 text-foreground/70" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">
                   {feature.title}
@@ -374,7 +344,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Destinations showcase */}
+      {/* ═══════════ Destinations showcase — photo cards ═══════════ */}
       <section className="py-24 px-4">
         <div className="max-w-6xl mx-auto">
           <motion.div
@@ -383,45 +353,42 @@ export default function LandingPage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-warning/10 text-xs font-medium text-warning mb-4">
-              <Star className="h-3 w-3" />
-              Popular
-            </span>
+            <p className="text-xs tracking-[0.2em] uppercase text-muted-foreground mb-3">
+              Top Picks
+            </p>
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground">
               Trending Destinations
             </h2>
-            <p className="mt-3 text-muted-foreground max-w-lg mx-auto">
+            <p className="mt-3 text-muted-foreground max-w-md mx-auto">
               Discover the most loved destinations by our travelers
             </p>
           </motion.div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { city: "Tokyo", emoji: "🇯🇵", img: "🏯", tag: "Trending" },
-              { city: "Paris", emoji: "🇫🇷", img: "🗼", tag: "Popular" },
-              { city: "Dubai", emoji: "🇦🇪", img: "🌇", tag: "Luxe" },
-              { city: "Bali", emoji: "🇮🇩", img: "🏝️", tag: "Paradise" },
-              { city: "Rome", emoji: "🇮🇹", img: "🏛️", tag: "Historic" },
-              { city: "New York", emoji: "🇺🇸", img: "🗽", tag: "Iconic" },
-              { city: "Singapore", emoji: "🇸🇬", img: "🌃", tag: "Modern" },
-              { city: "Cape Town", emoji: "🇿🇦", img: "⛰️", tag: "Nature" },
-            ].map((dest, idx) => (
+            {DESTINATIONS.map((dest, idx) => (
               <motion.div
                 key={dest.city}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.05 }}
               >
                 <Link href="/dashboard">
-                  <div className="group relative p-6 rounded-2xl border border-border bg-card hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 hover:-translate-y-1 cursor-pointer overflow-hidden">
-                    <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-primary/10 text-[10px] font-medium text-primary">
+                  <div className="group relative aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer">
+                    <Image
+                      src={dest.image}
+                      alt={dest.city}
+                      fill
+                      className="object-cover transition-transform duration-700 group-hover:scale-110"
+                      sizes="(max-width: 768px) 50vw, 25vw"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                    <div className="absolute top-3 right-3 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-medium text-white">
                       {dest.tag}
                     </div>
-                    <div className="text-4xl mb-3 group-hover:scale-110 transition-transform duration-300">{dest.img}</div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">{dest.emoji}</span>
-                      <span className="font-semibold text-foreground">{dest.city}</span>
+                    <div className="absolute bottom-4 left-4">
+                      <p className="text-white font-semibold text-lg leading-tight">{dest.city}</p>
+                      <p className="text-white/70 text-xs mt-0.5">{dest.country}</p>
                     </div>
                   </div>
                 </Link>
@@ -431,59 +398,44 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA - Enhanced */}
+      {/* ═══════════ CTA ═══════════ */}
       <section className="py-24 px-4">
-        <div className="max-w-4xl mx-auto text-center">
+        <div className="max-w-3xl mx-auto text-center">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="glass-card p-12 sm:p-16 relative overflow-hidden"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-accent/5 to-primary/5" />
-            <div className="absolute top-0 left-1/4 w-64 h-64 bg-primary/10 rounded-full blur-[100px]" />
-            <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-accent/10 rounded-full blur-[100px]" />
-
-            <div className="relative">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                className="absolute -top-6 -right-6 text-5xl opacity-20"
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+              Ready to Start Your Journey?
+            </h2>
+            <p className="text-muted-foreground mb-8 max-w-md mx-auto text-lg">
+              Let our AI craft the perfect itinerary that adapts to every
+              moment of your adventure.
+            </p>
+            <Link href="/dashboard">
+              <Button
+                size="lg"
+                className="text-base px-12 py-3 bg-foreground text-background hover:bg-foreground/90 font-semibold rounded-full transition-all duration-300 hover:scale-[1.02]"
               >
-                ✈️
-              </motion.div>
+                Plan Your Trip Now
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </Link>
 
-              <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-                Ready to Dream <span className="gradient-text">Endlessly?</span>
-              </h2>
-              <p className="text-muted-foreground mb-8 max-w-md mx-auto text-lg">
-                Let our AI craft the perfect itinerary that adapts to every
-                moment of your journey.
-              </p>
-              <Link href="/dashboard">
-                <Button
-                  size="lg"
-                  className="text-base px-12 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white shadow-xl shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02] transition-all duration-300"
-                >
-                  <Sparkles className="h-5 w-5 mr-2" />
-                  Plan Your Trip Now
-                </Button>
-              </Link>
-
-              <div className="mt-8 flex items-center justify-center gap-6 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <Shield className="h-4 w-4 text-success" />
-                  Free to use
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Zap className="h-4 w-4 text-warning" />
-                  AI Powered
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <RefreshCw className="h-4 w-4 text-primary" />
-                  Real-time
-                </span>
-              </div>
+            <div className="mt-8 flex items-center justify-center gap-8 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Shield className="h-4 w-4" />
+                Free to use
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Zap className="h-4 w-4" />
+                AI Powered
+              </span>
+              <span className="flex items-center gap-1.5">
+                <RefreshCw className="h-4 w-4" />
+                Real-time
+              </span>
             </div>
           </motion.div>
         </div>

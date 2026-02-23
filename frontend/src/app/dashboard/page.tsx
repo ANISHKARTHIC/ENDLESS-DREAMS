@@ -55,8 +55,8 @@ export default function DashboardPage() {
             className="mb-10"
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
-                <Globe className="h-5 w-5 text-white" />
+              <div className="h-10 w-10 rounded-xl bg-foreground flex items-center justify-center">
+                <Globe className="h-5 w-5 text-background" />
               </div>
               <div>
                 <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
@@ -125,7 +125,7 @@ export default function DashboardPage() {
                     </div>
                   ) : recentTrips.length === 0 ? (
                     <div className="text-center py-6">
-                      <div className="text-3xl mb-2">✈️</div>
+                      <Plane className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
                       <p className="text-sm text-muted-foreground">
                         No trips yet. Create your first one!
                       </p>

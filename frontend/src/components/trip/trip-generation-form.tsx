@@ -152,9 +152,9 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
             <div
               className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-500 ${
                 i === step
-                  ? "bg-gradient-to-br from-primary to-accent text-white shadow-lg shadow-primary/30 scale-110"
+                  ? "bg-foreground text-background shadow-lg scale-110"
                   : i < step
-                  ? "bg-primary/20 text-primary"
+                  ? "bg-foreground/20 text-foreground"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -162,7 +162,7 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
             </div>
             {i < steps.length - 1 && (
               <div className={`w-8 sm:w-16 h-0.5 rounded transition-all duration-500 ${
-                i < step ? "bg-gradient-to-r from-primary to-accent" : "bg-muted"
+                i < step ? "bg-foreground/40" : "bg-muted"
               }`} />
             )}
           </button>
@@ -227,7 +227,7 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
 
           {/* Departure city search */}
           <CitySearch
-            label="✈️ Departing from"
+            label="Departing from"
             value={form.departure_city || ""}
             onChange={handleDepartureSelect}
             placeholder="Search departure city..."
@@ -251,7 +251,7 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
 
           {/* Destination city search */}
           <CitySearch
-            label="🌍 Going to"
+            label="Going to"
             value={form.destination_city}
             onChange={handleDestinationSelect}
             placeholder="Search any destination worldwide..."
@@ -261,7 +261,7 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
           {/* Travel date */}
           <div className="pt-2">
             <Input
-              label="📅 Travel Date"
+              label="Travel Date"
               type="date"
               value={form.start_date}
               onChange={(e) => updateForm({ start_date: e.target.value })}
@@ -365,7 +365,7 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
 
           <div className="space-y-3">
             <label className="block text-sm font-medium text-foreground">
-              💰 Budget (USD)
+              Budget (USD)
             </label>
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -442,11 +442,11 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
           <p className="text-sm text-muted-foreground text-center">
             Adjust the sliders to tell our AI what matters most to you
           </p>
-          <Slider label="🏛️ Culture & History" value={form.interest_culture || 0.5} onChange={(v) => updateForm({ interest_culture: v })} min={0} max={1} step={0.1} />
-          <Slider label="🌿 Nature & Outdoors" value={form.interest_nature || 0.5} onChange={(v) => updateForm({ interest_nature: v })} min={0} max={1} step={0.1} />
-          <Slider label="🍽️ Food & Dining" value={form.interest_food || 0.5} onChange={(v) => updateForm({ interest_food: v })} min={0} max={1} step={0.1} />
-          <Slider label="🏔️ Adventure" value={form.interest_adventure || 0.5} onChange={(v) => updateForm({ interest_adventure: v })} min={0} max={1} step={0.1} />
-          <Slider label="🧘 Relaxation" value={form.interest_relaxation || 0.5} onChange={(v) => updateForm({ interest_relaxation: v })} min={0} max={1} step={0.1} />
+          <Slider label="Culture & History" value={form.interest_culture || 0.5} onChange={(v) => updateForm({ interest_culture: v })} min={0} max={1} step={0.1} />
+          <Slider label="Nature & Outdoors" value={form.interest_nature || 0.5} onChange={(v) => updateForm({ interest_nature: v })} min={0} max={1} step={0.1} />
+          <Slider label="Food & Dining" value={form.interest_food || 0.5} onChange={(v) => updateForm({ interest_food: v })} min={0} max={1} step={0.1} />
+          <Slider label="Adventure" value={form.interest_adventure || 0.5} onChange={(v) => updateForm({ interest_adventure: v })} min={0} max={1} step={0.1} />
+          <Slider label="Relaxation" value={form.interest_relaxation || 0.5} onChange={(v) => updateForm({ interest_relaxation: v })} min={0} max={1} step={0.1} />
         </motion.div>
       )}
 
@@ -468,7 +468,7 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
               type="button"
               onClick={handleNext}
               disabled={!canAdvance()}
-              className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white shadow-lg shadow-primary/25"
+              className="bg-foreground text-background hover:bg-foreground/90"
             >
               Continue
               <ArrowRight className="h-4 w-4 ml-2" />
@@ -478,7 +478,7 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
           <Button
             type="submit"
             disabled={isLoading}
-            className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white shadow-lg shadow-primary/25"
+            className="bg-foreground text-background hover:bg-foreground/90"
           >
             {isLoading ? (
               <>

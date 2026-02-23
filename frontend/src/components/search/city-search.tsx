@@ -197,7 +197,9 @@ export function CitySearch({ value, onChange, placeholder = "Search any city wor
                           : "hover:bg-muted/50"
                       }`}
                     >
-                      <span className="text-xl shrink-0">{city.emoji}</span>
+                      <div className="h-8 w-8 rounded-lg bg-muted/80 flex items-center justify-center shrink-0">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className="font-medium text-foreground text-sm">{city.city}</span>

@@ -11,10 +11,10 @@ export function Footer() {
           {/* Brand */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <Plane className="h-4 w-4 text-white rotate-[-30deg]" />
+              <div className="h-8 w-8 rounded-xl bg-foreground flex items-center justify-center">
+                <Plane className="h-4 w-4 text-background rotate-[-30deg]" />
               </div>
-              <span className="text-lg font-bold gradient-text">
+              <span className="text-lg font-bold text-foreground">
                 Endless Dreams
               </span>
             </div>

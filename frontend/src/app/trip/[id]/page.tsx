@@ -165,7 +165,7 @@ export default function TripDetailPage() {
         <Navbar />
         <main className="pt-24 pb-16 px-4 flex items-center justify-center">
           <div className="text-center">
-            <div className="text-5xl mb-4">😢</div>
+            <MapPin className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-foreground">Trip Not Found</h1>
             <p className="text-muted-foreground mt-2">
               This trip doesn&apos;t exist or has been removed.
@@ -345,7 +345,7 @@ export default function TripDetailPage() {
                     />
                   ) : (
                     <div className="glass-card p-12 text-center">
-                      <div className="text-5xl mb-4">📋</div>
+                      <Activity className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
                       <p className="font-medium text-foreground">
                         No itinerary items yet
                       </p>
@@ -464,17 +464,17 @@ export default function TripDetailPage() {
                 </h3>
                 <div className="space-y-2">
                   {[
-                    { label: "🏛️ Culture", value: trip.interest_culture },
-                    { label: "🌿 Nature", value: trip.interest_nature },
-                    { label: "🍽️ Food", value: trip.interest_food },
-                    { label: "🏔️ Adventure", value: trip.interest_adventure },
-                    { label: "🧘 Relaxation", value: trip.interest_relaxation },
+                    { label: "Culture", value: trip.interest_culture },
+                    { label: "Nature", value: trip.interest_nature },
+                    { label: "Food", value: trip.interest_food },
+                    { label: "Adventure", value: trip.interest_adventure },
+                    { label: "Relaxation", value: trip.interest_relaxation },
                   ].map((interest) => (
                     <div key={interest.label} className="flex items-center gap-3">
                       <span className="text-sm w-28">{interest.label}</span>
                       <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all"
+                          className="h-full rounded-full bg-foreground/70 transition-all"
                           style={{ width: `${interest.value * 100}%` }}
                         />
                       </div>
