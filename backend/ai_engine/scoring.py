@@ -221,6 +221,13 @@ class ScoringEngine:
             result = self.score_place(place, context)
             scored.append(result)
 
+            # Update context for next place so distance/fatigue scoring works
+            if place.latitude and place.longitude:
+                context['prev_lat'] = place.latitude
+                context['prev_lon'] = place.longitude
+            context['activities_today'] = context.get('activities_today', 0) + 1
+            context['total_duration_today'] = context.get('total_duration_today', 0) + place.avg_duration_minutes
+
         # Sort by score descending
         scored.sort(key=lambda x: x['total_score'], reverse=True)
 

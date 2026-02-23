@@ -87,7 +87,7 @@ export default function TripDetailPage() {
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [activeUsers, setActiveUsers] = useState<{ username: string; id: string }[]>([]);
-  const { convert, symbol } = useCurrency();
+  const { convertFromUsd, symbol } = useCurrency();
 
   // Determine if trip is happening today
   const today = new Date().toISOString().slice(0, 10);
@@ -364,8 +364,8 @@ export default function TripDetailPage() {
             {/* Budget bar */}
             <div className="mt-5">
               <BudgetProgress
-                spent={convert(Number(trip.budget_spent_usd))}
-                total={convert(Number(trip.budget_usd))}
+                spent={convertFromUsd(Number(trip.budget_spent_usd))}
+                total={convertFromUsd(Number(trip.budget_usd))}
                 currency={symbol}
               />
             </div>
@@ -563,7 +563,18 @@ export default function TripDetailPage() {
 
               {/* Accommodation */}
               {accommodation.length > 0 && (
-                <AccommodationCard accommodations={accommodation} />
+                <AccommodationCard
+                  accommodations={accommodation}
+                  onSelect={(selected) => {
+                    // Move selected accommodation to top and mark as recommended
+                    setAccommodation((prev) =>
+                      prev.map((a) => ({
+                        ...a,
+                        is_recommended: a.name === selected.name,
+                      }))
+                    );
+                  }}
+                />
               )}
 
               {/* Booking Insights */}

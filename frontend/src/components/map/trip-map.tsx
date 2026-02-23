@@ -160,8 +160,12 @@ export function TripMap({
   /* ─ Derived data ─ */
 
   const visibleItems = useMemo(() => {
-    if (!selectedDay) return items;
-    return items.filter((i) => i.day_number === selectedDay);
+    const dayFiltered = selectedDay ? items.filter((i) => i.day_number === selectedDay) : items;
+    // Filter out places with invalid/zero coordinates (null island)
+    return dayFiltered.filter(
+      (i) => i.place.latitude && i.place.longitude &&
+             Math.abs(i.place.latitude) > 0.01 && Math.abs(i.place.longitude) > 0.01
+    );
   }, [items, selectedDay]);
 
   const dayGroups = useMemo(() => {

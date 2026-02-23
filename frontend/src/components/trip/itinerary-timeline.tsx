@@ -75,7 +75,7 @@ export function ItineraryTimeline({
   onReorder,
   onStatusChange,
 }: ItineraryTimelineProps) {
-  const { convert, symbol } = useCurrency();
+  const { convertFromUsd, symbol } = useCurrency();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -130,7 +130,7 @@ export function ItineraryTimeline({
               <div>
                 <h3 className="font-bold text-foreground text-lg">Day {day}</h3>
                 <p className="text-xs text-muted-foreground">
-                  {dayItems.length} activities &middot; {symbol}{Math.round(convert(totalCost))}{" "}
+                  {dayItems.length} activities &middot; {symbol}{Math.round(convertFromUsd(totalCost)).toLocaleString()}{" "}
                   &middot; {Math.round(totalDuration / 60)}h {totalDuration % 60}m
                 </p>
               </div>

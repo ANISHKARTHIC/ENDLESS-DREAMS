@@ -42,7 +42,7 @@ export function TripExpenses({ tripId, budgetUsd }: TripExpensesProps) {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [creating, setCreating] = useState(false);
-  const { convert, symbol } = useCurrency();
+  const { convertFromUsd, symbol } = useCurrency();
 
   // Form state
   const [formTitle, setFormTitle] = useState("");
@@ -143,10 +143,10 @@ export function TripExpenses({ tripId, budgetUsd }: TripExpensesProps) {
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">
-              {symbol}{convert(totalSpent).toFixed(0)} spent
+              {symbol}{Math.round(convertFromUsd(totalSpent)).toLocaleString()} spent
             </span>
             <span className="font-medium text-foreground">
-              {symbol}{convert(budgetUsd).toFixed(0)} budget
+              {symbol}{Math.round(convertFromUsd(budgetUsd)).toLocaleString()} budget
             </span>
           </div>
           <div className="h-3 rounded-full bg-muted overflow-hidden">
@@ -162,7 +162,7 @@ export function TripExpenses({ tripId, budgetUsd }: TripExpensesProps) {
           </div>
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>{Math.round(percentUsed)}% used</span>
-            <span>{symbol}{convert(remaining).toFixed(0)} remaining</span>
+            <span>{symbol}{Math.round(convertFromUsd(remaining)).toLocaleString()} remaining</span>
           </div>
         </div>
 
@@ -184,7 +184,7 @@ export function TripExpenses({ tripId, budgetUsd }: TripExpensesProps) {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground truncate">{val.label}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {symbol}{convert(val.amount).toFixed(0)}
+                      {symbol}{Math.round(convertFromUsd(val.amount)).toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -197,7 +197,7 @@ export function TripExpenses({ tripId, budgetUsd }: TripExpensesProps) {
           <div className="mt-3 flex items-center gap-2 p-2 rounded-lg bg-muted/50">
             <TrendingDown className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">
-              Daily average: {symbol}{convert(summary.daily_average).toFixed(0)}
+              Daily average: {symbol}{Math.round(convertFromUsd(summary.daily_average)).toLocaleString()}
             </span>
           </div>
         )}
@@ -304,7 +304,7 @@ export function TripExpenses({ tripId, budgetUsd }: TripExpensesProps) {
                     </p>
                   </div>
                   <span className="text-sm font-semibold text-foreground shrink-0">
-                    {symbol}{convert(Number(expense.amount_usd)).toFixed(0)}
+                    {symbol}{Math.round(convertFromUsd(Number(expense.amount_usd))).toLocaleString()}
                   </span>
                   <button
                     onClick={() => handleDelete(expense.id)}

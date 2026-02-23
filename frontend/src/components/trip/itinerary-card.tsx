@@ -31,7 +31,7 @@ export function ItineraryCard({
   isDragging,
   dragHandleProps,
 }: ItineraryCardProps) {
-  const { convert, symbol } = useCurrency();
+  const { convertFromUsd, symbol } = useCurrency();
   const statusColors: Record<string, string> = {
     scheduled: "default",
     in_progress: "info",
@@ -151,7 +151,7 @@ export function ItineraryCard({
             </div>
             <div className="flex items-center gap-1">
               <span className="font-medium text-xs">{symbol}</span>
-              <span>{Math.round(convert(Number(item.estimated_cost_usd)))}</span>
+              <span>{Math.round(convertFromUsd(Number(item.estimated_cost_usd))).toLocaleString()}</span>
             </div>
             {Number(item.place.rating) > 0 && (
               <div className="flex items-center gap-1">

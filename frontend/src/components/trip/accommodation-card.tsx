@@ -19,6 +19,7 @@ import { useCurrency } from "@/contexts/currency-context";
 interface AccommodationCardProps {
   accommodations: Accommodation[];
   compact?: boolean;
+  onSelect?: (accommodation: Accommodation) => void;
 }
 
 const AMENITY_ICONS: Record<string, React.ReactNode> = {
@@ -45,8 +46,8 @@ function StayTypeBadge({ type }: { type: string }) {
   );
 }
 
-export function AccommodationCard({ accommodations, compact }: AccommodationCardProps) {
-  const { convert, symbol } = useCurrency();
+export function AccommodationCard({ accommodations, compact, onSelect }: AccommodationCardProps) {
+  const { convertFromUsd, symbol } = useCurrency();
   if (!accommodations.length) return null;
 
   const recommended = accommodations.find((a) => a.is_recommended) || accommodations[0];
@@ -111,15 +112,23 @@ export function AccommodationCard({ accommodations, compact }: AccommodationCard
             {/* Price */}
             <div className="flex items-baseline gap-1">
               <span className="text-lg font-bold text-foreground">
-                {symbol}{Math.round(convert(recommended.price_per_night_usd))}
+                {symbol}{Math.round(convertFromUsd(recommended.price_per_night_usd)).toLocaleString()}
               </span>
               <span className="text-xs text-muted-foreground">/night</span>
               <span className="text-xs text-muted-foreground ml-1">
-                ({symbol}{Math.round(convert(recommended.total_cost_usd))} total)
+                ({symbol}{Math.round(convertFromUsd(recommended.total_cost_usd)).toLocaleString()} total)
               </span>
             </div>
           </div>
         </div>
+
+        {/* Selected indicator */}
+        {recommended.is_recommended && (
+          <div className="mt-2 flex items-center gap-1.5 text-xs text-primary font-medium">
+            <Check className="h-3.5 w-3.5" />
+            Selected stay
+          </div>
+        )}
 
         {/* Optimization metrics */}
         <div className="grid grid-cols-2 gap-2 mt-3">
@@ -170,25 +179,29 @@ export function AccommodationCard({ accommodations, compact }: AccommodationCard
           </p>
           <div className="space-y-2">
             {others.map((a, i) => (
-              <div
+              <button
                 key={i}
-                className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-muted/30 transition"
+                onClick={() => onSelect?.(a)}
+                className="w-full flex items-center justify-between py-2 px-3 rounded-lg hover:bg-primary/5 border border-transparent hover:border-primary/20 transition cursor-pointer text-left"
               >
                 <div className="flex items-center gap-2">
                   <StayTypeBadge type={a.type} />
-                  <span className="text-sm text-foreground truncate max-w-[140px]">
-                    {a.name}
-                  </span>
+                  <div>
+                    <span className="text-sm text-foreground truncate block max-w-[140px]">
+                      {a.name}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {a.distance_to_attractions_km} km to attractions
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    {a.distance_to_attractions_km} km
+                <div className="text-right">
+                  <span className="text-sm font-semibold block">
+                    {symbol}{Math.round(convertFromUsd(a.price_per_night_usd)).toLocaleString()}
                   </span>
-                  <span className="text-sm font-semibold">
-                    {symbol}{Math.round(convert(a.price_per_night_usd))}
-                  </span>
+                  <span className="text-[10px] text-muted-foreground">/night</span>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>

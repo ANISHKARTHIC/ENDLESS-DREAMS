@@ -93,6 +93,12 @@ class TripGenerateView(APIView):
         else:
             trip.session_id = request.headers.get('X-Session-Id', str(uuid.uuid4()))
 
+        # Deduct travel cost from budget if a travel option was selected
+        if trip.selected_travel_option:
+            from decimal import Decimal
+            travel_cost_usd = float(trip.selected_travel_option.price_usd) if trip.selected_travel_option.price_usd else float(trip.selected_travel_option.price_inr) / 83.5
+            trip.budget_spent_usd += Decimal(str(round(travel_cost_usd, 2)))
+
         trip.save()
 
         # Fetch candidate places
@@ -193,12 +199,24 @@ class TripGenerateView(APIView):
             attraction_centroid=centroid,
         )
 
+        # Deduct accommodation cost from budget
+        from decimal import Decimal
+        accommodation_cost = accommodation[0]['total_cost_usd'] if accommodation else 0
+        if accommodation_cost:
+            trip.budget_spent_usd += Decimal(str(round(float(accommodation_cost), 2)))
+
+        # Also add up itinerary activity costs
+        total_activity_cost = sum(item.get('estimated_cost_usd', 0) for item in itinerary_items)
+        if total_activity_cost:
+            trip.budget_spent_usd += Decimal(str(round(total_activity_cost, 2)))
+
+        trip.save()
+
         # Booking insights
         insights_service = BookingInsightsService()
-        accommodation_cost = accommodation[0]['total_cost_usd'] if accommodation else 0
         travel_cost = 0
         if trip.selected_travel_option:
-            travel_cost = float(trip.selected_travel_option.price_inr) / 83  # approx INR to USD
+            travel_cost = float(trip.selected_travel_option.price_usd) if trip.selected_travel_option.price_usd else float(trip.selected_travel_option.price_inr) / 83.5
 
         booking_insights = insights_service.generate_insights(
             city=data['destination_city'],

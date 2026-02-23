@@ -80,8 +80,10 @@ class RouteOptimizer:
         prev_lat = None
         prev_lon = None
 
-        # Take top candidates by score, filter used
-        candidates = [p for p in available if p['place_id'] not in used]
+        # Take top candidates by score, filter used and invalid coordinates
+        candidates = [p for p in available if p['place_id'] not in used
+                      and p['place'].latitude and p['place'].longitude
+                      and abs(p['place'].latitude) > 0.01 and abs(p['place'].longitude) > 0.01]
 
         order = 1
         selected_today = set()
@@ -167,8 +169,22 @@ class RouteOptimizer:
 
     @staticmethod
     def _estimate_travel_time(distance_km: float) -> int:
-        """Estimate travel time in minutes. Assumes avg 25 km/h in city."""
-        return max(5, int((distance_km / 25.0) * 60))
+        """Estimate travel time in minutes using realistic speed tiers.
+        
+        < 2km: walking ~5 km/h
+        2-8km: auto-rickshaw / taxi in city ~15 km/h (traffic)
+        8-30km: city driving ~30 km/h
+        30km+: highway / intercity ~60 km/h
+        """
+        if distance_km < 2:
+            speed = 5.0
+        elif distance_km < 8:
+            speed = 15.0
+        elif distance_km < 30:
+            speed = 30.0
+        else:
+            speed = 60.0
+        return max(3, int((distance_km / speed) * 60))
 
     @staticmethod
     def _minutes_to_time(minutes: int) -> dt_time:

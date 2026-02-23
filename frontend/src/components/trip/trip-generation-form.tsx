@@ -45,7 +45,9 @@ const STAY_TYPE_OPTIONS = [
   { value: "any", label: "All" },
   { value: "hotel", label: "Hotel" },
   { value: "resort", label: "Resort" },
-  { value: "villa", label: "Villa" },
+  { value: "hostel", label: "Hostel" },
+  { value: "airbnb", label: "Airbnb" },
+  { value: "boutique", label: "Boutique" },
 ];
 
 export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormProps) {

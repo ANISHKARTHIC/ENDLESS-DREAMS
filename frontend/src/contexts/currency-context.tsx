@@ -9,6 +9,7 @@ interface CurrencyContextType {
   setCurrency: (code: string) => void;
   rates: CurrencyRate[];
   convert: (amountInr: number) => number;
+  convertFromUsd: (amountUsd: number) => number;
   symbol: string;
   loading: boolean;
 }
@@ -18,6 +19,7 @@ const CurrencyContext = createContext<CurrencyContextType>({
   setCurrency: () => {},
   rates: [],
   convert: (a) => a,
+  convertFromUsd: (a) => a,
   symbol: "\u20b9",
   loading: false,
 });
@@ -70,12 +72,36 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     [currency, rates]
   );
 
+  const convertFromUsd = useCallback(
+    (amountUsd: number) => {
+      if (currency === "USD") return amountUsd;
+      // Convert USD -> INR first, then INR -> target currency
+      const usdRate = rates.find((r) => r.currency_code === "USD");
+      if (!usdRate || usdRate.rate_from_inr === 0) {
+        // Fallback: approximate USD to INR at 83.5
+        const inrAmount = amountUsd * 83.5;
+        if (currency === "INR") return Math.round(inrAmount);
+        const targetRate = rates.find((r) => r.currency_code === currency);
+        if (!targetRate) return Math.round(inrAmount);
+        return Math.round(inrAmount * targetRate.rate_from_inr * 100) / 100;
+      }
+      // usdRate.rate_from_inr = how many USD per 1 INR (e.g., 0.012)
+      // So 1 USD = 1/0.012 INR
+      const inrAmount = amountUsd / usdRate.rate_from_inr;
+      if (currency === "INR") return Math.round(inrAmount);
+      const targetRate = rates.find((r) => r.currency_code === currency);
+      if (!targetRate) return Math.round(inrAmount);
+      return Math.round(inrAmount * targetRate.rate_from_inr * 100) / 100;
+    },
+    [currency, rates]
+  );
+
   const symbol =
     rates.find((r) => r.currency_code === currency)?.symbol ?? "\u20b9";
 
   return (
     <CurrencyContext.Provider
-      value={{ currency, setCurrency, rates, convert, symbol, loading }}
+      value={{ currency, setCurrency, rates, convert, convertFromUsd, symbol, loading }}
     >
       {children}
     </CurrencyContext.Provider>

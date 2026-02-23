@@ -73,7 +73,7 @@ export function DestinationRecommendations({
   const [data, setData] = useState<RecommendationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTier, setSelectedTier] = useState<string>("moderate");
-  const { convert, symbol } = useCurrency();
+  const { convertFromUsd, symbol } = useCurrency();
 
   useEffect(() => {
     if (!city) return;
@@ -187,7 +187,7 @@ export function DestinationRecommendations({
               >
                 <div className="flex items-baseline gap-1">
                   <span className={`text-base font-bold ${selectedTier === key ? "text-primary" : "text-foreground"}`}>
-                    {symbol}{Math.round(convert(t.daily_usd))}
+                    {symbol}{Math.round(convertFromUsd(t.daily_usd)).toLocaleString()}
                   </span>
                   <span className="text-[10px] text-muted-foreground">/day</span>
                 </div>
@@ -205,7 +205,7 @@ export function DestinationRecommendations({
                   Estimated total ({days} days, {tier.label.toLowerCase()})
                 </span>
                 <span className="text-sm font-bold text-primary">
-                  {symbol}{Math.round(convert(totalBudget))}
+                  {symbol}{Math.round(convertFromUsd(totalBudget)).toLocaleString()}
                 </span>
               </div>
               {budgetMatch && (
@@ -252,7 +252,7 @@ export function DestinationRecommendations({
                 </div>
                 <div>
                   <p className="text-[10px] font-medium text-foreground capitalize">{key}</p>
-                  <p className="text-xs font-semibold">{symbol}{Math.round(convert(b.daily_usd))}<span className="text-[10px] text-muted-foreground font-normal">/day · {b.pct}%</span></p>
+                  <p className="text-xs font-semibold">{symbol}{Math.round(convertFromUsd(b.daily_usd)).toLocaleString()}<span className="text-[10px] text-muted-foreground font-normal">/day · {b.pct}%</span></p>
                 </div>
               </div>
             ))}
@@ -304,7 +304,7 @@ export function DestinationRecommendations({
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-semibold">{symbol}{Math.round(convert(Number(place.avg_cost_usd)))}</p>
+                    <p className="text-xs font-semibold">{symbol}{Math.round(convertFromUsd(Number(place.avg_cost_usd))).toLocaleString()}</p>
                     <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                       <Clock className="h-2.5 w-2.5" />
                       {Math.round(place.avg_duration_minutes / 60 * 10) / 10}h
