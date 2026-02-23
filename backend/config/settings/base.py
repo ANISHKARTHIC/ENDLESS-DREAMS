@@ -180,6 +180,13 @@ AMADEUS_API_KEY = os.environ.get('AMADEUS_API_KEY', '')
 AMADEUS_API_SECRET = os.environ.get('AMADEUS_API_SECRET', '')
 EXCHANGE_RATE_API_KEY = os.environ.get('EXCHANGE_RATE_API_KEY', '')
 
+# Train search API (optional; if missing, train service falls back to generated data)
+TRAIN_API_BASE_URL = os.environ.get('TRAIN_API_BASE_URL', '')
+TRAIN_API_PATH = os.environ.get('TRAIN_API_PATH', '/search')
+TRAIN_API_KEY = os.environ.get('TRAIN_API_KEY', '')
+TRAIN_API_HOST = os.environ.get('TRAIN_API_HOST', '')
+TRAIN_API_TIMEOUT = int(os.environ.get('TRAIN_API_TIMEOUT', 12))
+
 # Groq (fast LLM inference)
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
 

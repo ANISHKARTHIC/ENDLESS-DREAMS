@@ -1,4 +1,4 @@
-"""Flights service - search for flight options with Amadeus API + LLM fallback."""
+"""Flights service - search for flight options with Amadeus API + fallback."""
 import json
 import logging
 import random
@@ -27,7 +27,7 @@ IATA_CODES = {
 
 
 class FlightsService(BaseService):
-    """Flight search with Amadeus API + LLM fallback."""
+    """Flight search with real-time Amadeus API as primary source."""
 
     BASE_URL = 'https://test.api.amadeus.com'
 
@@ -78,6 +78,7 @@ class FlightsService(BaseService):
             if results:
                 return results
 
+        # Fallback only when API auth/search is unavailable.
         return self._llm_flights(departure, arrival, date_str)
 
     def _get_llm(self):
@@ -139,7 +140,7 @@ Return ONLY a JSON array with 3-5 flights. Each object:
                         'carbon_kg': float(f.get('carbon_kg', round(dur * 0.15, 1))),
                         'delay_risk': min(1.0, float(f.get('delay_risk', 0.1))),
                         'amenities': f.get('amenities', ['Carry-on bag']),
-                        'is_mock': False,
+                        'is_mock': True,
                     })
                 except (ValueError, TypeError):
                     continue
