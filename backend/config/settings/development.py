@@ -39,6 +39,12 @@ except Exception:
 
 CORS_ALLOW_ALL_ORIGINS = True
 
+# Higher throttle for development
+REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
+    'anon': '200/minute',
+    'user': '500/minute',
+}
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,

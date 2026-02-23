@@ -23,11 +23,17 @@ AIRLINES = [
 # IATA codes for cities
 IATA_CODES = {
     'Delhi': 'DEL', 'Mumbai': 'BOM', 'Bangalore': 'BLR', 'Chennai': 'MAA',
-    'Kolkata': 'CCU', 'Hyderabad': 'HYD', 'Paris': 'CDG', 'Tokyo': 'NRT',
-    'New York': 'JFK', 'London': 'LHR', 'Dubai': 'DXB', 'Singapore': 'SIN',
-    'Bangkok': 'BKK', 'Sydney': 'SYD', 'Los Angeles': 'LAX', 'Rome': 'FCO',
-    'Barcelona': 'BCN', 'Istanbul': 'IST', 'Frankfurt': 'FRA', 'Doha': 'DOH',
-    'Hong Kong': 'HKG', 'Seoul': 'ICN', 'Kuala Lumpur': 'KUL', 'Bali': 'DPS',
+    'Kolkata': 'CCU', 'Hyderabad': 'HYD', 'Goa': 'GOI', 'Jaipur': 'JAI',
+    'Ahmedabad': 'AMD', 'Pune': 'PNQ', 'Kochi': 'COK', 'Lucknow': 'LKO',
+    'Paris': 'CDG', 'Tokyo': 'NRT', 'New York': 'JFK', 'London': 'LHR',
+    'Dubai': 'DXB', 'Singapore': 'SIN', 'Bangkok': 'BKK', 'Sydney': 'SYD',
+    'Los Angeles': 'LAX', 'Rome': 'FCO', 'Barcelona': 'BCN', 'Istanbul': 'IST',
+    'Frankfurt': 'FRA', 'Doha': 'DOH', 'Hong Kong': 'HKG', 'Seoul': 'ICN',
+    'Kuala Lumpur': 'KUL', 'Bali': 'DPS', 'Amsterdam': 'AMS', 'Zurich': 'ZRH',
+    'Vienna': 'VIE', 'Osaka': 'KIX', 'Taipei': 'TPE', 'Manila': 'MNL',
+    'Jakarta': 'CGK', 'Ho Chi Minh City': 'SGN', 'Hanoi': 'HAN',
+    'Colombo': 'CMB', 'Kathmandu': 'KTM', 'Dhaka': 'DAC',
+    'San Francisco': 'SFO', 'Chicago': 'ORD', 'Toronto': 'YYZ',
 }
 
 # Approximate flight durations in minutes between city pairs
@@ -52,6 +58,27 @@ FLIGHT_ROUTES = {
     ('Kolkata', 'Tokyo'): {'duration': 420, 'base_price': 28000},
     ('Kolkata', 'New York'): {'duration': 1020, 'base_price': 56000},
     ('Kolkata', 'London'): {'duration': 570, 'base_price': 36000},
+    # Singapore routes
+    ('Chennai', 'Singapore'): {'duration': 250, 'base_price': 15000},
+    ('Delhi', 'Singapore'): {'duration': 330, 'base_price': 20000},
+    ('Mumbai', 'Singapore'): {'duration': 330, 'base_price': 18000},
+    ('Bangalore', 'Singapore'): {'duration': 240, 'base_price': 14000},
+    ('Kolkata', 'Singapore'): {'duration': 260, 'base_price': 16000},
+    # Dubai routes
+    ('Chennai', 'Dubai'): {'duration': 240, 'base_price': 14000},
+    ('Delhi', 'Dubai'): {'duration': 210, 'base_price': 13000},
+    ('Mumbai', 'Dubai'): {'duration': 200, 'base_price': 12000},
+    # Bangkok routes
+    ('Chennai', 'Bangkok'): {'duration': 210, 'base_price': 12000},
+    ('Delhi', 'Bangkok'): {'duration': 270, 'base_price': 15000},
+    ('Mumbai', 'Bangkok'): {'duration': 260, 'base_price': 14000},
+    # Other popular international routes
+    ('Delhi', 'Sydney'): {'duration': 720, 'base_price': 50000},
+    ('Mumbai', 'Sydney'): {'duration': 690, 'base_price': 48000},
+    ('Delhi', 'Dubai'): {'duration': 210, 'base_price': 13000},
+    ('Delhi', 'Istanbul'): {'duration': 420, 'base_price': 25000},
+    ('Delhi', 'Rome'): {'duration': 540, 'base_price': 33000},
+    ('Delhi', 'Barcelona'): {'duration': 570, 'base_price': 34000},
 }
 
 AIRPORTS = {
@@ -64,6 +91,18 @@ AIRPORTS = {
     'Tokyo': 'Narita Intl (NRT)',
     'New York': 'John F. Kennedy Intl (JFK)',
     'London': 'Heathrow (LHR)',
+    'Singapore': 'Changi Airport (SIN)',
+    'Dubai': 'Dubai Intl (DXB)',
+    'Bangkok': 'Suvarnabhumi (BKK)',
+    'Sydney': 'Kingsford Smith (SYD)',
+    'Los Angeles': 'LAX Intl (LAX)',
+    'Rome': 'Fiumicino (FCO)',
+    'Barcelona': 'El Prat (BCN)',
+    'Istanbul': 'Istanbul Airport (IST)',
+    'Hong Kong': 'Hong Kong Intl (HKG)',
+    'Seoul': 'Incheon Intl (ICN)',
+    'Kuala Lumpur': 'KLIA (KUL)',
+    'Bali': 'Ngurah Rai (DPS)',
 }
 
 

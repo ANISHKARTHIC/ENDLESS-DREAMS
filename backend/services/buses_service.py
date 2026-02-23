@@ -31,7 +31,16 @@ BUS_ROUTES = {
     ('Bangalore', 'Chennai'): {'duration': 360, 'base_price': 600},
     ('Bangalore', 'Mumbai'): {'duration': 960, 'base_price': 1100},
     ('Chennai', 'Bangalore'): {'duration': 360, 'base_price': 600},
+    ('Chennai', 'Delhi'): {'duration': 2100, 'base_price': 2200},
+    ('Chennai', 'Mumbai'): {'duration': 1200, 'base_price': 1400},
+    ('Chennai', 'Kolkata'): {'duration': 1800, 'base_price': 1800},
+    ('Chennai', 'Hyderabad'): {'duration': 720, 'base_price': 800},
     ('Kolkata', 'Delhi'): {'duration': 1320, 'base_price': 1500},
+    ('Kolkata', 'Mumbai'): {'duration': 1800, 'base_price': 1800},
+    ('Hyderabad', 'Bangalore'): {'duration': 600, 'base_price': 700},
+    ('Hyderabad', 'Chennai'): {'duration': 720, 'base_price': 800},
+    ('Hyderabad', 'Mumbai'): {'duration': 780, 'base_price': 900},
+    ('Hyderabad', 'Delhi'): {'duration': 1440, 'base_price': 1600},
 }
 
 TERMINALS = {

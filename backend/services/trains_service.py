@@ -30,7 +30,18 @@ DOMESTIC_ROUTES = {
     ('Mumbai', 'Bangalore'): {'duration': 900, 'base_price': 2200},
     ('Mumbai', 'Chennai'): {'duration': 1200, 'base_price': 2600},
     ('Bangalore', 'Chennai'): {'duration': 300, 'base_price': 800},
+    ('Chennai', 'Bangalore'): {'duration': 300, 'base_price': 800},
+    ('Chennai', 'Delhi'): {'duration': 1680, 'base_price': 3000},
+    ('Chennai', 'Mumbai'): {'duration': 1200, 'base_price': 2600},
+    ('Chennai', 'Kolkata'): {'duration': 1620, 'base_price': 2900},
     ('Kolkata', 'Delhi'): {'duration': 1020, 'base_price': 2800},
+    ('Kolkata', 'Chennai'): {'duration': 1620, 'base_price': 2900},
+    ('Bangalore', 'Delhi'): {'duration': 1500, 'base_price': 3200},
+    ('Bangalore', 'Mumbai'): {'duration': 900, 'base_price': 2200},
+    ('Hyderabad', 'Chennai'): {'duration': 720, 'base_price': 1500},
+    ('Hyderabad', 'Bangalore'): {'duration': 720, 'base_price': 1600},
+    ('Hyderabad', 'Delhi'): {'duration': 1080, 'base_price': 2500},
+    ('Hyderabad', 'Mumbai'): {'duration': 900, 'base_price': 2000},
 }
 
 # International high-speed (for destination cities served by rail)

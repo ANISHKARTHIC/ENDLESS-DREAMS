@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,11 +19,13 @@ import {
   Navigation,
   Route,
   Building2,
+  Wallet,
 } from "lucide-react";
 import { TravelComparison } from "@/components/trip/travel-comparison";
 import { InteractiveGlobe } from "@/components/globe/interactive-globe";
 import { CitySearch } from "@/components/search/city-search";
 import { getCityData, type WorldCity } from "@/data/world-cities";
+import { useCurrency } from "@/contexts/currency-context";
 import { api } from "@/lib/api";
 import type { TripGenerateRequest, TravelOption, TravelSearchResponse } from "@/types";
 
@@ -49,13 +51,25 @@ const STAY_TYPE_OPTIONS = [
 
 export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormProps) {
   const [step, setStep] = useState(0);
+  const { currency, rates, symbol } = useCurrency();
+
+  // Budget quick-select amounts per currency
+  const BUDGET_AMOUNTS: Record<string, number[]> = {
+    INR: [25000, 50000, 100000, 250000, 500000],
+    USD: [500, 1000, 2000, 5000, 10000],
+    EUR: [500, 1000, 2000, 5000, 10000],
+    GBP: [400, 800, 1500, 4000, 8000],
+    JPY: [75000, 150000, 300000, 750000, 1500000],
+  };
+  const quickAmounts = BUDGET_AMOUNTS[currency] || BUDGET_AMOUNTS.USD;
+
   const [form, setForm] = useState<TripGenerateRequest>({
     departure_city: "",
     destination_city: "",
     destination_country: "",
     start_date: "",
     end_date: "",
-    budget_usd: 2000,
+    budget_usd: quickAmounts[2], // sensible default for the currency (middle value)
     pace: "moderate",
     stay_type: "any",
     group_size: 1,
@@ -73,6 +87,38 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
 
   const updateForm = (updates: Partial<TripGenerateRequest>) => {
     setForm((prev) => ({ ...prev, ...updates }));
+  };
+
+  // Convert from user's currency to USD for backend
+  const convertToUsd = useCallback(
+    (localAmount: number) => {
+      if (currency === "USD") return localAmount;
+      // rates are rate_from_inr — convert user currency -> INR -> USD
+      const myRate = rates.find((r) => r.currency_code === currency);
+      const usdRate = rates.find((r) => r.currency_code === "USD");
+      if (!myRate || !usdRate || myRate.rate_from_inr === 0) {
+        // Fallback: assume INR and use approximate rate
+        return Math.round(localAmount * 0.012 * 100) / 100;
+      }
+      const inrAmount = localAmount / myRate.rate_from_inr;
+      return Math.round(inrAmount * usdRate.rate_from_inr * 100) / 100;
+    },
+    [currency, rates]
+  );
+
+  // Format budget amount for display
+  const formatBudgetLabel = (amount: number): string => {
+    if (currency === "INR") {
+      if (amount >= 100000) return `${(amount / 100000).toFixed(amount % 100000 === 0 ? 0 : 1)}L`;
+      if (amount >= 1000) return `${(amount / 1000).toFixed(0)}K`;
+      return amount.toLocaleString("en-IN");
+    }
+    if (currency === "JPY") {
+      if (amount >= 10000) return `${(amount / 10000).toFixed(0)}万`;
+      return amount.toLocaleString();
+    }
+    if (amount >= 1000) return `${(amount / 1000).toFixed(amount % 1000 === 0 ? 0 : 1)}k`;
+    return amount.toLocaleString();
   };
 
   // Globe coordinates
@@ -93,6 +139,8 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const data = { ...form };
+    // Convert budget from user's local currency to USD for the backend
+    data.budget_usd = convertToUsd(form.budget_usd);
     if (selectedTravel) {
       data.travel_option_id = selectedTravel.id;
     }
@@ -120,30 +168,31 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
 
   const handleTravelSelect = (option: TravelOption) => {
     setSelectedTravel(option);
-    setStep(2);
+    setStep(3);
   };
 
   const handleTravelSkip = () => {
     setSelectedTravel(null);
-    setStep(2);
+    setStep(3);
   };
 
   const steps = [
     { title: "Where are you going?", subtitle: "Choose departure & destination", icon: Globe },
+    { title: "When & Budget", subtitle: "Set your travel dates and budget", icon: Wallet },
     { title: "How will you travel?", subtitle: "Compare flights, trains & buses", icon: Plane },
-    { title: "When & Budget", subtitle: "Set your travel dates and budget", icon: Calendar },
     { title: "Your Style", subtitle: "Tell us what you love", icon: Sparkles },
   ];
 
   const canAdvance = () => {
-    if (step === 0) return !!form.departure_city && !!form.destination_city && !!form.start_date;
-    if (step === 1) return true;
-    if (step === 2) return !!form.start_date && !!form.end_date && form.budget_usd > 0;
+    if (step === 0) return !!form.departure_city && !!form.destination_city;
+    if (step === 1) return !!form.start_date && !!form.end_date && form.budget_usd > 0;
+    if (step === 2) return true;
     return true;
   };
 
   const handleNext = () => {
-    if (step === 0 && form.departure_city && form.destination_city && form.start_date) {
+    if (step === 1 && form.departure_city && form.destination_city && form.start_date) {
+      // Search travel options when advancing from budget to travel step
       searchTravel();
     }
     setStep(step + 1);
@@ -268,77 +317,11 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
             placeholder="Search any destination worldwide..."
             excludeCities={form.departure_city ? [form.departure_city] : []}
           />
-
-          {/* Travel date */}
-          <div className="pt-2">
-            <Input
-              label="Travel Date"
-              type="date"
-              value={form.start_date}
-              onChange={(e) => updateForm({ start_date: e.target.value })}
-            />
-          </div>
         </motion.div>
       )}
 
-      {/* Step 1: Travel Comparison + Route Visualization */}
+      {/* Step 1: Dates & Budget (moved before travel) */}
       {step === 1 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          {/* Mini globe showing route */}
-          <div className="flex justify-center mb-6">
-            <div className="relative">
-              <InteractiveGlobe
-                focusLat={destCity?.lat}
-                focusLng={destCity?.lng}
-                departureLat={depCity?.lat}
-                departureLng={depCity?.lng}
-                size={200}
-                autoRotate={false}
-                className="opacity-80"
-              />
-            </div>
-          </div>
-
-          {/* Route info bar */}
-          <div className="flex items-center justify-center gap-4 mb-6 p-3 rounded-2xl bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 border border-primary/10">
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-primary" />
-              <span className="text-sm font-medium text-foreground">{form.departure_city}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-16 h-px bg-gradient-to-r from-primary to-accent" />
-              <Plane className="h-4 w-4 text-accent -rotate-45" />
-              <div className="w-16 h-px bg-gradient-to-r from-accent to-primary" />
-            </div>
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-accent" />
-              <span className="text-sm font-medium text-foreground">{form.destination_city}</span>
-            </div>
-          </div>
-
-          {selectedTravel && (
-            <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/20 text-center">
-              <span className="text-xs text-primary">
-                ✓ Selected: {selectedTravel.provider_name} ({selectedTravel.transport_type}) — {selectedTravel.route_number}
-              </span>
-            </div>
-          )}
-          <TravelComparison
-            options={travelOptions}
-            departureCity={form.departure_city || ""}
-            arrivalCity={form.destination_city}
-            isLoading={travelLoading}
-            onSelect={handleTravelSelect}
-            onSkip={handleTravelSkip}
-          />
-        </motion.div>
-      )}
-
-      {/* Step 2: Dates & Budget */}
-      {step === 2 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -353,7 +336,6 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
               <p className="font-semibold text-foreground">{form.departure_city} → {form.destination_city}</p>
               <p className="text-xs text-muted-foreground">
                 {destCity?.country} · {destCity?.description}
-                {selectedTravel && ` · ${selectedTravel.provider_name}`}
               </p>
             </div>
           </div>
@@ -376,21 +358,23 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
 
           <div className="space-y-3">
             <label className="block text-sm font-medium text-foreground">
-              Budget (USD)
+              Budget ({currency})
             </label>
             <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
+                {symbol}
+              </span>
               <input
                 type="number"
                 value={form.budget_usd}
                 onChange={(e) => updateForm({ budget_usd: parseInt(e.target.value) || 0 })}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background/50 backdrop-blur-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 min={100}
-                step={100}
+                step={currency === "JPY" ? 1000 : 100}
               />
             </div>
             <div className="flex gap-2">
-              {[500, 1000, 2000, 5000, 10000].map((amount) => (
+              {quickAmounts.map((amount) => (
                 <button
                   key={amount}
                   type="button"
@@ -401,7 +385,7 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
                       : "border-border text-muted-foreground hover:border-primary/30"
                   }`}
                 >
-                  ${amount >= 1000 ? `${amount / 1000}k` : amount}
+                  {symbol}{formatBudgetLabel(amount)}
                 </button>
               ))}
             </div>
@@ -469,6 +453,62 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
         </motion.div>
       )}
 
+      {/* Step 2: Travel Comparison + Route Visualization */}
+      {step === 2 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          {/* Mini globe showing route */}
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              <InteractiveGlobe
+                focusLat={destCity?.lat}
+                focusLng={destCity?.lng}
+                departureLat={depCity?.lat}
+                departureLng={depCity?.lng}
+                size={200}
+                autoRotate={false}
+                className="opacity-80"
+              />
+            </div>
+          </div>
+
+          {/* Route info bar */}
+          <div className="flex items-center justify-center gap-4 mb-6 p-3 rounded-2xl bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 border border-primary/10">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-primary" />
+              <span className="text-sm font-medium text-foreground">{form.departure_city}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-16 h-px bg-gradient-to-r from-primary to-accent" />
+              <Plane className="h-4 w-4 text-accent -rotate-45" />
+              <div className="w-16 h-px bg-gradient-to-r from-accent to-primary" />
+            </div>
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-accent" />
+              <span className="text-sm font-medium text-foreground">{form.destination_city}</span>
+            </div>
+          </div>
+
+          {selectedTravel && (
+            <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/20 text-center">
+              <span className="text-xs text-primary">
+                Selected: {selectedTravel.provider_name} ({selectedTravel.transport_type}) -- {selectedTravel.route_number}
+              </span>
+            </div>
+          )}
+          <TravelComparison
+            options={travelOptions}
+            departureCity={form.departure_city || ""}
+            arrivalCity={form.destination_city}
+            isLoading={travelLoading}
+            onSelect={handleTravelSelect}
+            onSkip={handleTravelSkip}
+          />
+        </motion.div>
+      )}
+
       {/* Step 3: Interests */}
       {step === 3 && (
         <motion.div
@@ -498,7 +538,7 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
         )}
 
         {step < 3 ? (
-          step === 1 ? (
+          step === 2 ? (
             <div />
           ) : (
             <Button

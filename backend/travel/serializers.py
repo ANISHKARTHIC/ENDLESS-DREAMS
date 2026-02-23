@@ -38,7 +38,7 @@ class TravelOptionSerializer(serializers.ModelSerializer):
             'departure_time', 'arrival_time', 'duration_minutes',
             'price_inr', 'price_usd', 'stops', 'stop_details',
             'cabin_class', 'carbon_kg', 'delay_risk', 'amenities',
-            'is_direct', 'is_mock', 'created_at',
+            'is_direct', 'is_mock', 'badges', 'created_at',
         ]
 
     def get_badges(self, obj):
