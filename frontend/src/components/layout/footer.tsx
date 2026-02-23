@@ -1,31 +1,15 @@
 "use client";
 
-import { Plane, Github, Heart } from "lucide-react";
+import { Github, Heart } from "lucide-react";
 import Link from "next/link";
 
 export function Footer() {
   return (
     <footer className="border-t border-border bg-background/50 backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Brand */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-xl bg-foreground flex items-center justify-center">
-                <Plane className="h-4 w-4 text-background rotate-[-30deg]" />
-              </div>
-              <span className="text-lg font-bold text-foreground">
-                Endless Dreams
-              </span>
-            </div>
-            <p className="text-sm text-muted-foreground max-w-xs">
-              AI-powered travel intelligence that dynamically crafts, monitors,
-              and adapts your perfect itinerary in real-time.
-            </p>
-          </div>
-
-          {/* Links */}
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+          {/* Left - Product links */}
+          <div className="space-y-4 order-2 md:order-1">
             <h3 className="text-sm font-semibold text-foreground">Product</h3>
             <div className="space-y-2">
               {[
@@ -44,10 +28,24 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Tech */}
-          <div className="space-y-4">
+          {/* Center - Brand */}
+          <div className="space-y-4 order-1 md:order-2 flex flex-col items-center text-center">
+            <div className="flex items-center gap-1.5">
+              <img src="/logo.svg" alt="Endless Dreams" className="h-7 w-auto" />
+              <span className="text-lg font-bold text-foreground">
+                Endless Dreams
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              AI-powered travel intelligence that dynamically crafts, monitors,
+              and adapts your perfect itinerary in real-time.
+            </p>
+          </div>
+
+          {/* Right - Built With */}
+          <div className="space-y-4 order-3 md:text-right">
             <h3 className="text-sm font-semibold text-foreground">Built With</h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 md:justify-end">
               {["Next.js", "Django", "Tailwind", "Framer Motion", "Mapbox"].map(
                 (tech) => (
                   <span
@@ -59,15 +57,6 @@ export function Footer() {
                 )
               )}
             </div>
-          </div>
-        </div>
-
-        <div className="mt-10 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} The Endless Dreams. All rights reserved.
-          </p>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            Made with <Heart className="h-3 w-3 text-red-500 fill-red-500 mx-0.5" /> for Hackathon
           </div>
         </div>
       </div>

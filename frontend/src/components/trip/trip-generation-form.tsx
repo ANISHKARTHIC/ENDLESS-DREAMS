@@ -41,12 +41,10 @@ const PACE_OPTIONS = [
 ];
 
 const STAY_TYPE_OPTIONS = [
-  { value: "any", label: "Any" },
+  { value: "any", label: "All" },
   { value: "hotel", label: "Hotel" },
-  { value: "hostel", label: "Hostel" },
   { value: "resort", label: "Resort" },
-  { value: "airbnb", label: "Airbnb" },
-  { value: "boutique", label: "Boutique" },
+  { value: "villa", label: "Villa" },
 ];
 
 export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormProps) {
@@ -177,7 +175,7 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
   };
 
   const steps = [
-    { title: "Where are you going?", subtitle: "Choose departure & destination", icon: Globe },
+    { title: "Where are you going?", subtitle: "Choose your destination", icon: Globe },
     { title: "When & Budget", subtitle: "Set your travel dates and budget", icon: Wallet },
     { title: "How will you travel?", subtitle: "Compare flights, trains & buses", icon: Plane },
     { title: "Your Style", subtitle: "Tell us what you love", icon: Sparkles },
@@ -212,9 +210,9 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
             <div
               className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-500 ${
                 i === step
-                  ? "bg-foreground text-background shadow-lg scale-110"
+                  ? "bg-gradient-to-br from-sky-400 to-cyan-500 text-white shadow-lg scale-110 step-wheel-spin"
                   : i < step
-                  ? "bg-foreground/20 text-foreground"
+                  ? "bg-gradient-to-br from-sky-400/30 to-cyan-500/30 text-foreground"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -222,7 +220,7 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
             </div>
             {i < steps.length - 1 && (
               <div className={`w-8 sm:w-16 h-0.5 rounded transition-all duration-500 ${
-                i < step ? "bg-foreground/40" : "bg-muted"
+                i < step ? "bg-gradient-to-r from-sky-400 to-cyan-500" : "bg-muted"
               }`} />
             )}
           </button>
@@ -261,61 +259,62 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
                 size={320}
                 className="mx-auto"
               />
-              {/* Floating route info */}
-              <AnimatePresence>
-                {form.departure_city && form.destination_city && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full glass text-sm font-medium shadow-lg"
-                  >
-                    <span className="flex items-center gap-1.5 text-primary">
-                      <Navigation className="h-3.5 w-3.5" />
-                      {form.departure_city}
-                    </span>
-                    <Route className="h-3.5 w-3.5 text-accent animate-pulse" />
-                    <span className="flex items-center gap-1.5 text-accent">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {form.destination_city}
-                    </span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
           </div>
 
-          {/* Departure city search */}
+          {/* Route info - below globe, not overlapping */}
+          <AnimatePresence>
+            {form.departure_city && form.destination_city && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="flex items-center justify-center gap-3 px-5 py-2.5 rounded-full glass text-sm font-medium shadow-lg mx-auto w-fit"
+              >
+                <span className="flex items-center gap-1.5 text-primary">
+                  <Navigation className="h-3.5 w-3.5" />
+                  {form.departure_city}
+                </span>
+                <Route className="h-3.5 w-3.5 text-accent animate-pulse" />
+                <span className="flex items-center gap-1.5 text-accent">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {form.destination_city}
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Destination city search */}
           <CitySearch
-            label="Departing from"
-            value={form.departure_city || ""}
-            onChange={handleDepartureSelect}
-            placeholder="Search departure city..."
-            excludeCities={form.destination_city ? [form.destination_city] : []}
+            label="Enter your dream destination"
+            value={form.destination_city}
+            onChange={handleDestinationSelect}
+            placeholder="Search any destination worldwide..."
+            excludeCities={form.departure_city ? [form.departure_city] : []}
           />
 
           {/* Animated connector */}
-          {form.departure_city && (
+          {form.destination_city && (
             <div className="flex items-center justify-center gap-2 text-muted-foreground">
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-accent/30 to-transparent" />
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20"
               >
-                <ArrowRight className="h-4 w-4 text-white" />
+                <ArrowRight className="h-4 w-4 text-white rotate-180" />
               </motion.div>
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-accent/30 to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
             </div>
           )}
 
-          {/* Destination city search */}
+          {/* Departure city search */}
           <CitySearch
-            label="Going to"
-            value={form.destination_city}
-            onChange={handleDestinationSelect}
-            placeholder="Search any destination worldwide..."
-            excludeCities={form.departure_city ? [form.departure_city] : []}
+            label="Starting point of your dream"
+            value={form.departure_city || ""}
+            onChange={handleDepartureSelect}
+            placeholder="Search departure city..."
+            excludeCities={form.destination_city ? [form.destination_city] : []}
           />
         </motion.div>
       )}
@@ -509,21 +508,97 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
         </motion.div>
       )}
 
-      {/* Step 3: Interests */}
+      {/* Step 3: Interests - Spinning Wheel */}
       {step === 3 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-5"
+          className="space-y-6"
         >
           <p className="text-sm text-muted-foreground text-center">
-            Adjust the sliders to tell our AI what matters most to you
+            Drag the dot around each wheel to set your interest level
           </p>
-          <Slider label="Culture & History" value={form.interest_culture || 0.5} onChange={(v) => updateForm({ interest_culture: v })} min={0} max={1} step={0.1} />
-          <Slider label="Nature & Outdoors" value={form.interest_nature || 0.5} onChange={(v) => updateForm({ interest_nature: v })} min={0} max={1} step={0.1} />
-          <Slider label="Food & Dining" value={form.interest_food || 0.5} onChange={(v) => updateForm({ interest_food: v })} min={0} max={1} step={0.1} />
-          <Slider label="Adventure" value={form.interest_adventure || 0.5} onChange={(v) => updateForm({ interest_adventure: v })} min={0} max={1} step={0.1} />
-          <Slider label="Relaxation" value={form.interest_relaxation || 0.5} onChange={(v) => updateForm({ interest_relaxation: v })} min={0} max={1} step={0.1} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
+            {[
+              { label: "Culture & History", key: "interest_culture", color: "#f59e0b" },
+              { label: "Nature & Outdoors", key: "interest_nature", color: "#22c55e" },
+              { label: "Food & Dining", key: "interest_food", color: "#ef4444" },
+              { label: "Adventure", key: "interest_adventure", color: "#0ea5e9" },
+              { label: "Relaxation", key: "interest_relaxation", color: "#8b5cf6" },
+            ].map((item) => {
+              const value = (form as any)[item.key] ?? 0.5;
+              const percent = Math.round(value * 100);
+              // Dot position on circle edge (angle from top, clockwise)
+              const angle = value * 360 - 90; // -90 so 0% starts at top
+              const rad = (angle * Math.PI) / 180;
+              const radius = 40; // half of the 80px wheel
+              const dotX = 40 + radius * Math.cos(rad);
+              const dotY = 40 + radius * Math.sin(rad);
+
+              const handleWheel = (e: React.MouseEvent<SVGSVGElement>) => {
+                const svg = e.currentTarget;
+                const rect = svg.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                const x = e.clientX - cx;
+                const y = e.clientY - cy;
+                let a = Math.atan2(y, x) * (180 / Math.PI) + 90;
+                if (a < 0) a += 360;
+                const newVal = Math.round((a / 360) * 10) / 10;
+                updateForm({ [item.key]: Math.min(1, Math.max(0, newVal)) });
+              };
+
+              const handleDrag = (e: React.MouseEvent<SVGSVGElement>) => {
+                if (e.buttons !== 1) return;
+                handleWheel(e);
+              };
+
+              return (
+                <div key={item.key} className="flex flex-col items-center gap-2">
+                  <svg
+                    width="80"
+                    height="80"
+                    viewBox="0 0 80 80"
+                    className="cursor-pointer select-none"
+                    onClick={handleWheel}
+                    onMouseMove={handleDrag}
+                  >
+                    {/* Background track */}
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#e5e7eb" strokeWidth="6" />
+                    {/* Filled arc */}
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r="34"
+                      fill="none"
+                      stroke={item.color}
+                      strokeWidth="6"
+                      strokeLinecap="round"
+                      strokeDasharray={`${value * 213.6} 213.6`}
+                      strokeDashoffset="0"
+                      transform="rotate(-90 40 40)"
+                      style={{ transition: 'stroke-dasharray 0.3s ease' }}
+                    />
+                    {/* Center text */}
+                    <text x="40" y="44" textAnchor="middle" fontSize="14" fontWeight="700" fill={item.color}>
+                      {percent}%
+                    </text>
+                    {/* Drag dot */}
+                    <circle
+                      cx={dotX}
+                      cy={dotY}
+                      r="7"
+                      fill="#ffffff"
+                      stroke={item.color}
+                      strokeWidth="3"
+                      style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.15))', transition: 'cx 0.3s ease, cy 0.3s ease' }}
+                    />
+                  </svg>
+                  <span className="text-xs font-medium text-foreground text-center leading-tight">{item.label}</span>
+                </div>
+              );
+            })}
+          </div>
         </motion.div>
       )}
 

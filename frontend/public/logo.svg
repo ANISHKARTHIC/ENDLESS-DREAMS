@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120">
+  <defs>
+    <linearGradient id="infGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#1a5fad"/>
+      <stop offset="35%" stop-color="#0080e0"/>
+      <stop offset="65%" stop-color="#00b4e6"/>
+      <stop offset="100%" stop-color="#5ce1f5"/>
+    </linearGradient>
+    <linearGradient id="infGrad2" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#1a5fad"/>
+      <stop offset="30%" stop-color="#0077d6"/>
+      <stop offset="70%" stop-color="#00aadd"/>
+      <stop offset="100%" stop-color="#60e8f8"/>
+    </linearGradient>
+    <linearGradient id="swooshGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.1"/>
+      <stop offset="30%" stop-color="#ffffff" stop-opacity="0.6"/>
+      <stop offset="70%" stop-color="#ffffff" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#c0f0ff" stop-opacity="0.3"/>
+    </linearGradient>
+    <radialGradient id="sparkle" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="50%" stop-color="#c0f0ff" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#c0f0ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Left loop -->
+  <path d="M100,60 C80,25 30,15 30,55 C30,85 75,95 100,60"
+        fill="none" stroke="url(#infGrad)" stroke-width="14" stroke-linecap="round"/>
+  <!-- Right loop -->
+  <path d="M100,60 C120,95 170,105 170,65 C170,30 125,20 100,60"
+        fill="none" stroke="url(#infGrad2)" stroke-width="14" stroke-linecap="round"/>
+  <!-- Swoosh highlight -->
+  <path d="M28,68 C55,58 85,52 100,56 C120,48 150,38 172,44"
+        fill="none" stroke="url(#swooshGrad)" stroke-width="3" stroke-linecap="round"/>
+  <!-- Inner highlight left -->
+  <path d="M100,60 C82,30 40,22 36,52"
+        fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.25" stroke-linecap="round"/>
+  <!-- Inner highlight right -->
+  <path d="M100,60 C118,88 160,96 166,68"
+        fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.2" stroke-linecap="round"/>
+  <!-- Sparkle -->
+  <g transform="translate(158,28)">
+    <line x1="0" y1="-8" x2="0" y2="8" stroke="#c0f0ff" stroke-width="1.2" opacity="0.8"/>
+    <line x1="-8" y1="0" x2="8" y2="0" stroke="#c0f0ff" stroke-width="1.2" opacity="0.8"/>
+    <line x1="-5" y1="-5" x2="5" y2="5" stroke="#c0f0ff" stroke-width="0.8" opacity="0.5"/>
+    <line x1="5" y1="-5" x2="-5" y2="5" stroke="#c0f0ff" stroke-width="0.8" opacity="0.5"/>
+    <circle cx="0" cy="0" r="3" fill="url(#sparkle)"/>
+  </g>
+</svg>

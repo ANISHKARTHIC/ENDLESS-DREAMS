@@ -55,9 +55,7 @@ export default function DashboardPage() {
             className="mb-10"
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className="h-10 w-10 rounded-xl bg-foreground flex items-center justify-center">
-                <Globe className="h-5 w-5 text-background" />
-              </div>
+              <img src="/logo.svg" alt="Endless Dreams" className="h-10 w-auto" />
               <div>
                 <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
                   Plan Your Journey
@@ -69,13 +67,12 @@ export default function DashboardPage() {
             </div>
           </motion.div>
 
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Trip Generation Form */}
+          <div className="grid lg:grid-cols-1 gap-8">
+            {/* Trip Generation Form - Full Width */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="lg:col-span-2"
             >
               <Card glass>
                 <CardHeader>
@@ -98,14 +95,12 @@ export default function DashboardPage() {
               </Card>
             </motion.div>
 
-            {/* Sidebar */}
+            {/* Recent Trips - Below form */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="space-y-6"
             >
-              {/* Recent trips */}
               <Card glass>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
@@ -115,8 +110,8 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   {!loaded ? (
-                    <div className="space-y-3">
-                      {[1, 2].map((i) => (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {[1, 2, 3].map((i) => (
                         <div
                           key={i}
                           className="h-16 rounded-xl shimmer"
@@ -124,18 +119,18 @@ export default function DashboardPage() {
                       ))}
                     </div>
                   ) : recentTrips.length === 0 ? (
-                    <div className="text-center py-6">
-                      <Plane className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                    <div className="text-center py-8">
+                      <Plane className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
                       <p className="text-sm text-muted-foreground">
                         No trips yet. Create your first one!
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      {recentTrips.slice(0, 5).map((trip) => (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {recentTrips.slice(0, 6).map((trip) => (
                         <div
                           key={trip.id}
-                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition group"
+                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition group border border-border/50"
                         >
                           <Link href={`/trip/${trip.id}`} className="flex items-center gap-3 flex-1 min-w-0">
                             <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -167,24 +162,32 @@ export default function DashboardPage() {
                   )}
                 </CardContent>
               </Card>
+            </motion.div>
 
-              {/* Quick tips */}
+            {/* Quick tips - Below Recent Trips */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Tips</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {[
-                    "Adjust interest sliders to match your travel style",
-                    "Lock important items to protect them from replanning",
-                    "Drag items to reorder your daily schedule",
-                    "The stability index shows real-time trip health",
-                  ].map((tip, idx) => (
-                    <div key={idx} className="flex gap-2 text-sm text-muted-foreground">
-                      <span className="text-primary shrink-0">•</span>
-                      <span>{tip}</span>
-                    </div>
-                  ))}
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[
+                      "Adjust interest sliders to match your travel style",
+                      "Lock important items to protect them from replanning",
+                      "Drag items to reorder your daily schedule",
+                      "The stability index shows real-time trip health",
+                    ].map((tip, idx) => (
+                      <div key={idx} className="flex gap-2 text-sm text-muted-foreground p-3 rounded-xl bg-muted/30">
+                        <span className="text-primary shrink-0">•</span>
+                        <span>{tip}</span>
+                      </div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
