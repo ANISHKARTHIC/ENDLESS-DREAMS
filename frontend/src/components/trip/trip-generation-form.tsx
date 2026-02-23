@@ -20,6 +20,7 @@ import {
   Route,
   Building2,
   Wallet,
+  LocateFixed,
 } from "lucide-react";
 import { TravelComparison } from "@/components/trip/travel-comparison";
 import { InteractiveGlobe } from "@/components/globe/interactive-globe";
@@ -28,7 +29,7 @@ import { CitySearch } from "@/components/search/city-search";
 import { getCityData, type WorldCity } from "@/data/world-cities";
 import { useCurrency } from "@/contexts/currency-context";
 import { api } from "@/lib/api";
-import { type RouteInfo } from "@/lib/mapbox";
+import { type RouteInfo, reverseGeocode } from "@/lib/mapbox";
 import type { TripGenerateRequest, TravelOption, TravelSearchResponse } from "@/types";
 
 interface TripGenerationFormProps {
@@ -145,10 +146,47 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
     return getCityData(form.departure_city || "");
   }, [selectedDepCity, form.departure_city]);
 
+  const [isLocating, setIsLocating] = useState(false);
+
   const handleDepartureSelect = (city: WorldCity) => {
     setSelectedDepCity(city); // Store the full city object with coordinates
     updateForm({ departure_city: city.city });
   };
+
+  /** Use browser geolocation + Mapbox reverse geocode to set departure */
+  const handleUseCurrentLocation = useCallback(async () => {
+    if (!navigator.geolocation) return;
+    setIsLocating(true);
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+        })
+      );
+      const { latitude, longitude } = pos.coords;
+      const place = await reverseGeocode(latitude, longitude);
+      const cityName = place?.text || "My Location";
+      const country = place?.country || "";
+      const cityObj: WorldCity = {
+        city: cityName,
+        country,
+        countryCode: "",
+        emoji: "",
+        lat: latitude,
+        lng: longitude,
+        description: place?.region || country,
+        region: "Asia" as const,
+        popular: false,
+      };
+      setSelectedDepCity(cityObj);
+      updateForm({ departure_city: cityName });
+    } catch (err) {
+      console.warn("Geolocation failed:", err);
+    } finally {
+      setIsLocating(false);
+    }
+  }, [updateForm]);
 
   const handleDestinationSelect = (city: WorldCity) => {
     setSelectedDestCity(city); // Store the full city object with coordinates
@@ -300,13 +338,31 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
               )}
 
               {/* Departure city search */}
-              <CitySearch
-                label="Starting point of your dream"
-                value={form.departure_city || ""}
-                onChange={handleDepartureSelect}
-                placeholder="Search departure city..."
-                excludeCities={form.destination_city ? [form.destination_city] : []}
-              />
+              <div className="relative">
+                <CitySearch
+                  label="Starting point of your dream"
+                  value={form.departure_city || ""}
+                  onChange={handleDepartureSelect}
+                  placeholder="Search departure city..."
+                  excludeCities={form.destination_city ? [form.destination_city] : []}
+                />
+                {/* Use current location button */}
+                {!form.departure_city && (
+                  <button
+                    type="button"
+                    onClick={handleUseCurrentLocation}
+                    disabled={isLocating}
+                    className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-50"
+                  >
+                    {isLocating ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <LocateFixed className="h-3.5 w-3.5" />
+                    )}
+                    {isLocating ? "Detecting location..." : "Use current location"}
+                  </button>
+                )}
+              </div>
 
               {/* Route info badge */}
               <AnimatePresence>
