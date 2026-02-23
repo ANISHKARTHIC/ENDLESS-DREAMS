@@ -1,0 +1,49 @@
+# Dependencies
+backend/node_modules/
+venv/
+.venv/
+__pycache__/
+*.pyc
+frontend/node_modules/
+# Build outputs
+.next/
+out/
+build/
+dist/
+*.egg-info/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+db.sqlite3
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+
+# Coverage
+.coverage
+htmlcov/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Static files
+staticfiles/
+media/
