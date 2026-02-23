@@ -1085,6 +1085,7 @@ class BudgetEstimateView(APIView):
         stay_type = request.data.get('stay_type', 'any')
         group_size = request.data.get('group_size', 1)
         currency = request.data.get('currency', 'USD')
+        transport_mode = request.data.get('transport_mode', 'any')
 
         if not destination_city:
             return Response({'error': 'destination_city is required'}, status=400)
@@ -1152,6 +1153,7 @@ Return ONLY valid JSON (no markdown, no explanation) in this EXACT structure:
 - Duration: {duration_days} days
 - Travel pace: {pace}
 - Accommodation preference: {stay_type}
+- Mode of transport: {transport_mode}
 - Group size: {group_size} {'person' if group_size == 1 else 'people'}
 - Dates: {start_date or 'flexible'} to {end_date or 'flexible'}
 - Currency: {currency}
@@ -1199,11 +1201,11 @@ Estimate a realistic total trip budget in {currency} and break it down."""
             logger.warning(f'AI budget estimation failed to parse: {e}')
             return Response(self._fallback_estimate(
                 destination_city, destination_country, duration_days,
-                pace, stay_type, group_size, currency, preference
+                pace, stay_type, group_size, currency, preference, transport_mode
             ))
 
     @staticmethod
-    def _fallback_estimate(city, country, days, pace, stay_type, group_size, currency, preference):
+    def _fallback_estimate(city, country, days, pace, stay_type, group_size, currency, preference, transport_mode='any'):
         """Heuristic financial planner when LLM is unavailable."""
         COST_TIERS = {
             'low cost':  {'Accommodation': 30, 'Food & Dining': 20, 'Activities & Sightseeing': 15, 'Local Transport': 10, 'Shopping & Misc': 10},

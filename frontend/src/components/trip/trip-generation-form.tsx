@@ -24,6 +24,9 @@ import {
   BrainCircuit,
   TrendingUp,
   Lightbulb,
+  Car,
+  Train,
+  Bus,
 } from "lucide-react";
 import { TravelComparison } from "@/components/trip/travel-comparison";
 import { InteractiveGlobe } from "@/components/globe/interactive-globe";
@@ -47,7 +50,7 @@ const PACE_OPTIONS = [
 ];
 
 const STAY_TYPE_OPTIONS = [
-  { value: "any", label: "All" },
+  { value: "any", label: "Any" },
   { value: "hotel", label: "Hotel" },
   { value: "resort", label: "Resort" },
   { value: "hostel", label: "Hostel" },
@@ -55,9 +58,20 @@ const STAY_TYPE_OPTIONS = [
   { value: "boutique", label: "Boutique" },
 ];
 
+const TRANSPORT_MODE_OPTIONS = [
+  { value: "any",    label: "Any Mode",   emoji: "🌐" },
+  { value: "flight", label: "Flight",     emoji: "✈️" },
+  { value: "train",  label: "Train",      emoji: "🚂" },
+  { value: "bus",    label: "Bus",        emoji: "🚌" },
+  { value: "road",   label: "Road Trip",  emoji: "🚗" },
+];
+
 export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormProps) {
   const [step, setStep] = useState(0);
   const { currency, rates, symbol } = useCurrency();
+
+  // Transport mode preference (UI state — feeds budget estimation)
+  const [transportMode, setTransportMode] = useState("any");
 
   // Budget quick-select amounts per currency
   const BUDGET_AMOUNTS: Record<string, number[]> = {
@@ -213,6 +227,7 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
         stay_type: form.stay_type,
         group_size: form.group_size,
         currency,
+        transport_mode: transportMode,
       });
       updateForm({ budget_usd: result.budget });
       setBudgetResult(result);
@@ -222,7 +237,7 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
     } finally {
       setIsEstimatingBudget(false);
     }
-  }, [form.destination_city, form.destination_country, form.departure_city, form.start_date, form.end_date, form.pace, form.stay_type, form.group_size, currency, updateForm]);
+  }, [form.destination_city, form.destination_country, form.departure_city, form.start_date, form.end_date, form.pace, form.stay_type, form.group_size, currency, transportMode, updateForm]);
 
   const handleDestinationSelect = (city: WorldCity) => {
     setSelectedDestCity(city); // Store the full city object with coordinates
@@ -264,31 +279,42 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
 
   const handleTravelSelect = (option: TravelOption) => {
     setSelectedTravel(option);
-    setStep(3);
+    setStep(4);
   };
 
   const handleTravelSkip = () => {
     setSelectedTravel(null);
-    setStep(3);
+    setStep(4);
   };
 
   const steps = [
-    { title: "Where are you going?", subtitle: "Choose your destination", icon: Globe },
-    { title: "When & Budget", subtitle: "Set your travel dates and budget", icon: Wallet },
-    { title: "How will you travel?", subtitle: "Compare flights, trains & buses", icon: Plane },
-    { title: "Your Style", subtitle: "Tell us what you love", icon: Sparkles },
+    { title: "Where are you going?",    subtitle: "Choose your destination",         icon: Globe    },
+    { title: "Trip Details",             subtitle: "Dates, pace & preferences",       icon: Calendar },
+    { title: "AI Budget",                subtitle: "Smart financial planning",        icon: Wallet   },
+    { title: "How will you travel?",     subtitle: "Compare flights, trains & buses", icon: Plane    },
+    { title: "Your Style",               subtitle: "Tell us what you love",           icon: Sparkles },
   ];
 
   const canAdvance = () => {
     if (step === 0) return !!form.departure_city && !!form.destination_city;
-    if (step === 1) return !!form.start_date && !!form.end_date && form.budget_usd > 0;
-    if (step === 2) return true;
+    if (step === 1) return !!form.start_date && !!form.end_date;
+    if (step === 2) return form.budget_usd > 0;
+    if (step === 3) return true;
     return true;
   };
 
   const handleNext = () => {
-    if (step === 1 && form.departure_city && form.destination_city && form.start_date) {
-      // Search travel options when advancing from budget to travel step
+    if (step === 1) {
+      // Auto-generate budget when moving to budget step
+      setStep(2);
+      // Trigger after state update
+      setTimeout(() => {
+        handleEstimateBudget();
+      }, 100);
+      return;
+    }
+    if (step === 2 && form.departure_city && form.destination_city && form.start_date) {
+      // Trigger travel search when moving to travel step
       searchTravel();
     }
     setStep(step + 1);
@@ -448,7 +474,7 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
         </motion.div>
       )}
 
-      {/* Step 1: Dates & Budget (moved before travel) */}
+      {/* Step 1: Trip Details — dates, pace, group size, stay type, transport mode */}
       {step === 1 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -462,12 +488,11 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
             </div>
             <div>
               <p className="font-semibold text-foreground">{form.departure_city} → {form.destination_city}</p>
-              <p className="text-xs text-muted-foreground">
-                {destCity?.country} · {destCity?.description}
-              </p>
+              <p className="text-xs text-muted-foreground">{destCity?.country} · {destCity?.description}</p>
             </div>
           </div>
 
+          {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Start Date"
@@ -484,234 +509,42 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
             />
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-foreground">
-                Budget ({currency})
-              </label>
+          {/* Pace */}
+          <Select
+            label="Travel Pace"
+            options={PACE_OPTIONS}
+            value={form.pace}
+            onChange={(v) => updateForm({ pace: v as TripGenerateRequest["pace"] })}
+          />
+
+          {/* Group Size */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">People</label>
+            <div className="flex items-center gap-4">
               <button
                 type="button"
-                onClick={handleEstimateBudget}
-                disabled={isEstimatingBudget || !form.destination_city}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-violet-500/10 to-purple-500/10 text-violet-600 dark:text-violet-400 hover:from-violet-500/20 hover:to-purple-500/20 border border-violet-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {isEstimatingBudget ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <BrainCircuit className="h-3.5 w-3.5" />
-                )}
-                {isEstimatingBudget ? "Estimating..." : "AI Suggest Budget"}
-              </button>
-            </div>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
-                {symbol}
-              </span>
-              <input
-                type="number"
-                value={form.budget_usd}
-                onChange={(e) => {
-                  updateForm({ budget_usd: parseInt(e.target.value) || 0 });
-                  setBudgetResult(null);
-                  setShowBudgetDetails(false);
-                }}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background/50 backdrop-blur-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                min={100}
-                step={currency === "JPY" ? 1000 : 100}
-              />
-            </div>
-            <div className="flex gap-2">
-              {quickAmounts.map((amount) => (
-                <button
-                  key={amount}
-                  type="button"
-                  onClick={() => {
-                    updateForm({ budget_usd: amount });
-                    setBudgetResult(null);
-                    setShowBudgetDetails(false);
-                  }}
-                  className={`flex-1 py-1.5 text-xs rounded-lg border transition-all ${
-                    form.budget_usd === amount
-                      ? "border-primary bg-primary/10 text-primary shadow-sm shadow-primary/10"
-                      : "border-border text-muted-foreground hover:border-primary/30"
-                  }`}
-                >
-                  {symbol}{formatBudgetLabel(amount)}
-                </button>
-              ))}
-            </div>
-
-            {/* AI Budget Intelligence Panel */}
-            <AnimatePresence>
-            {budgetResult && showBudgetDetails && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/5 via-purple-500/5 to-fuchsia-500/5 overflow-hidden"
-              >
-                {/* Header */}
-                <div className="px-4 py-3 flex items-center justify-between border-b border-violet-500/10">
-                  <div className="flex items-center gap-2">
-                    <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                      <BrainCircuit className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">AI Budget Planner</p>
-                      <p className="text-[10px] text-muted-foreground">{budgetResult.goal}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {budgetResult.preference && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-violet-500/10 text-violet-600 dark:text-violet-400 capitalize">
-                        {budgetResult.preference}
-                      </span>
-                    )}
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                      budgetResult.confidence === 'high'
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : budgetResult.confidence === 'medium'
-                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                        : 'bg-red-500/10 text-red-600 dark:text-red-400'
-                    }`}>
-                      {budgetResult.confidence} confidence
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowBudgetDetails(false)}
-                      className="text-muted-foreground hover:text-foreground text-xs ml-1"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-4 space-y-4">
-                  {/* Allocation Bars */}
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                      <TrendingUp className="h-3.5 w-3.5" />
-                      Budget Allocation
-                    </p>
-                    {budgetResult.allocation.map((item: BudgetAllocationItem) => (
-                      <div key={item.category} className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-foreground font-medium">{item.category}</span>
-                          <span className="text-xs font-semibold text-foreground">
-                            {symbol}{item.amount.toLocaleString()}
-                            <span className="text-muted-foreground font-normal ml-1">({item.percentage}%)</span>
-                          </span>
-                        </div>
-                        <div className="h-2 rounded-full bg-muted overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${Math.min(item.percentage, 100)}%` }}
-                            transition={{ duration: 0.6, ease: "easeOut" }}
-                            className="h-full rounded-full bg-gradient-to-r from-violet-500 to-purple-500"
-                          />
-                        </div>
-                        <p className="text-[10px] text-muted-foreground/70">{item.reason}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Hidden Costs Warning */}
-                  {budgetResult.hidden_costs.length > 0 && (
-                    <div className="rounded-xl bg-amber-500/5 border border-amber-500/15 p-3 space-y-1.5">
-                      <p className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                        <DollarSign className="h-3.5 w-3.5" />
-                        Hidden Costs to Watch
-                      </p>
-                      {budgetResult.hidden_costs.map((cost: string, i: number) => (
-                        <p key={i} className="text-[11px] text-muted-foreground pl-5">• {cost}</p>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Overspending Risk */}
-                  {budgetResult.overspending_risk && (
-                    <div className="rounded-xl bg-red-500/5 border border-red-500/15 p-3">
-                      <p className="text-xs font-medium text-red-600 dark:text-red-400 flex items-center gap-1.5">
-                        <Navigation className="h-3.5 w-3.5" />
-                        Overspending Risk
-                      </p>
-                      <p className="text-[11px] text-muted-foreground mt-1 pl-5">{budgetResult.overspending_risk}</p>
-                    </div>
-                  )}
-
-                  {/* Optimization Tips */}
-                  {budgetResult.optimization_tips.length > 0 && (
-                    <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/15 p-3 space-y-1.5">
-                      <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                        <Lightbulb className="h-3.5 w-3.5" />
-                        Money-Saving Tips
-                      </p>
-                      {budgetResult.optimization_tips.map((tip: string, i: number) => (
-                        <p key={i} className="text-[11px] text-muted-foreground pl-5">• {tip}</p>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Assumptions */}
-                  {budgetResult.assumptions.length > 0 && (
-                    <div className="pt-1 space-y-1">
-                      <p className="text-[10px] text-muted-foreground/60 font-medium">Assumptions</p>
-                      {budgetResult.assumptions.map((a: string, i: number) => (
-                        <p key={i} className="text-[10px] text-muted-foreground/50 pl-2">• {a}</p>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Footer */}
-                  <p className="text-[10px] text-muted-foreground/40 text-right">
-                    {budgetResult.ai_generated ? 'Powered by AI' : 'Heuristic estimate'} · {budgetResult.duration_days} days · adjust as needed
-                  </p>
-                </div>
-              </motion.div>
-            )}
-            </AnimatePresence>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="Pace"
-              options={PACE_OPTIONS}
-              value={form.pace}
-              onChange={(v) => updateForm({ pace: v as TripGenerateRequest["pace"] })}
-            />
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Group Size
-              </label>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => updateForm({ group_size: Math.max(1, (form.group_size || 1) - 1) })}
-                  className="h-10 w-10 rounded-xl border border-border flex items-center justify-center hover:bg-muted transition"
-                >
-                  -
-                </button>
-                <div className="flex items-center gap-1.5">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-lg font-semibold w-6 text-center">{form.group_size || 1}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => updateForm({ group_size: Math.min(10, (form.group_size || 1) + 1) })}
-                  className="h-10 w-10 rounded-xl border border-border flex items-center justify-center hover:bg-muted transition"
-                >
-                  +
-                </button>
+                onClick={() => updateForm({ group_size: Math.max(1, (form.group_size || 1) - 1) })}
+                className="h-10 w-10 rounded-xl border border-border flex items-center justify-center hover:bg-muted transition text-lg"
+              >−</button>
+              <div className="flex items-center gap-2 min-w-[60px] justify-center">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xl font-bold text-foreground">{form.group_size || 1}</span>
               </div>
+              <button
+                type="button"
+                onClick={() => updateForm({ group_size: Math.min(20, (form.group_size || 1) + 1) })}
+                className="h-10 w-10 rounded-xl border border-border flex items-center justify-center hover:bg-muted transition text-lg"
+              >+</button>
+              <span className="text-sm text-muted-foreground">{(form.group_size || 1) === 1 ? 'Solo' : (form.group_size || 1) === 2 ? 'Couple' : `Group of ${form.group_size}`}</span>
             </div>
           </div>
 
-          {/* Stay type preference */}
+          {/* Stay Type */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               <span className="flex items-center gap-1.5">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
-                Accommodation Preference
+                Type of Stay
               </span>
             </label>
             <div className="flex flex-wrap gap-2">
@@ -722,7 +555,7 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
                   onClick={() => updateForm({ stay_type: opt.value as TripGenerateRequest["stay_type"] })}
                   className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
                     form.stay_type === opt.value
-                      ? "border-primary bg-primary/10 text-primary shadow-sm shadow-primary/10"
+                      ? "border-primary bg-primary/10 text-primary shadow-sm"
                       : "border-border text-muted-foreground hover:border-primary/30"
                   }`}
                 >
@@ -731,11 +564,261 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
               ))}
             </div>
           </div>
+
+          {/* Transport Mode */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              <span className="flex items-center gap-1.5">
+                <Route className="h-4 w-4 text-muted-foreground" />
+                Mode of Transport
+              </span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {TRANSPORT_MODE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setTransportMode(opt.value)}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                    transportMode === opt.value
+                      ? "border-primary bg-primary/10 text-primary shadow-sm"
+                      : "border-border text-muted-foreground hover:border-primary/30"
+                  }`}
+                >
+                  <span>{opt.emoji}</span>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </motion.div>
       )}
 
-      {/* Step 2: Travel Comparison + Route Visualization */}
+      {/* Step 2: AI Budget — auto-generated from trip details */}
       {step === 2 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-5"
+        >
+          {/* Trip summary pill */}
+          <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-muted-foreground">
+            <span className="px-3 py-1.5 rounded-full bg-muted text-xs font-medium">{form.departure_city} → {form.destination_city}</span>
+            <span className="px-3 py-1.5 rounded-full bg-muted text-xs font-medium">{form.start_date} – {form.end_date}</span>
+            <span className="px-3 py-1.5 rounded-full bg-muted text-xs font-medium">{form.group_size || 1} {(form.group_size || 1) === 1 ? 'person' : 'people'}</span>
+            <span className="px-3 py-1.5 rounded-full bg-muted text-xs font-medium capitalize">{form.stay_type}</span>
+            <span className="px-3 py-1.5 rounded-full bg-muted text-xs font-medium capitalize">{form.pace} pace</span>
+          </div>
+
+          {/* Loading spinner while AI estimates */}
+          {isEstimatingBudget && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center gap-4 py-10"
+            >
+              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-xl shadow-violet-500/30 animate-pulse">
+                <BrainCircuit className="h-8 w-8 text-white" />
+              </div>
+              <div className="text-center">
+                <p className="font-semibold text-foreground">Analysing your trip...</p>
+                <p className="text-sm text-muted-foreground mt-1">AI is calculating a realistic budget</p>
+              </div>
+              <div className="flex gap-1.5">
+                {[0, 1, 2].map((i) => (
+                  <motion.div
+                    key={i}
+                    animate={{ opacity: [0.3, 1, 0.3] }}
+                    transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.3 }}
+                    className="h-2 w-2 rounded-full bg-violet-500"
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Budget result */}
+          {!isEstimatingBudget && (
+            <>
+              {/* Budget input — pre-filled by AI, user can adjust */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-foreground">Total Budget ({currency})</label>
+                  <button
+                    type="button"
+                    onClick={handleEstimateBudget}
+                    disabled={isEstimatingBudget}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-violet-500/10 to-purple-500/10 text-violet-600 dark:text-violet-400 hover:from-violet-500/20 hover:to-purple-500/20 border border-violet-500/20 transition-all"
+                  >
+                    <BrainCircuit className="h-3.5 w-3.5" />
+                    Re-estimate
+                  </button>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">{symbol}</span>
+                  <input
+                    type="number"
+                    value={form.budget_usd}
+                    onChange={(e) => {
+                      updateForm({ budget_usd: parseInt(e.target.value) || 0 });
+                      setBudgetResult(null);
+                      setShowBudgetDetails(false);
+                    }}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background/50 backdrop-blur-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-lg font-semibold"
+                    min={100}
+                    step={currency === "JPY" ? 1000 : 100}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  {quickAmounts.map((amount) => (
+                    <button
+                      key={amount}
+                      type="button"
+                      onClick={() => {
+                        updateForm({ budget_usd: amount });
+                        setBudgetResult(null);
+                        setShowBudgetDetails(false);
+                      }}
+                      className={`flex-1 py-1.5 text-xs rounded-lg border transition-all ${
+                        form.budget_usd === amount
+                          ? "border-primary bg-primary/10 text-primary shadow-sm"
+                          : "border-border text-muted-foreground hover:border-primary/30"
+                      }`}
+                    >
+                      {symbol}{formatBudgetLabel(amount)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* AI Budget Intelligence Panel */}
+              <AnimatePresence>
+              {budgetResult && showBudgetDetails && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/5 via-purple-500/5 to-fuchsia-500/5 overflow-hidden"
+                >
+                  {/* Header */}
+                  <div className="px-4 py-3 flex items-center justify-between border-b border-violet-500/10">
+                    <div className="flex items-center gap-2">
+                      <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                        <BrainCircuit className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">AI Budget Planner</p>
+                        <p className="text-[10px] text-muted-foreground">{budgetResult.goal}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {budgetResult.preference && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-violet-500/10 text-violet-600 dark:text-violet-400 capitalize">
+                          {budgetResult.preference}
+                        </span>
+                      )}
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                        budgetResult.confidence === 'high'
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          : budgetResult.confidence === 'medium'
+                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                          : 'bg-red-500/10 text-red-600 dark:text-red-400'
+                      }`}>
+                        {budgetResult.confidence} confidence
+                      </span>
+                      <button type="button" onClick={() => setShowBudgetDetails(false)} className="text-muted-foreground hover:text-foreground text-xs ml-1">✕</button>
+                    </div>
+                  </div>
+
+                  <div className="p-4 space-y-4">
+                    {/* Allocation Bars */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                        <TrendingUp className="h-3.5 w-3.5" />Budget Allocation
+                      </p>
+                      {budgetResult.allocation.map((item: BudgetAllocationItem) => (
+                        <div key={item.category} className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-foreground font-medium">{item.category}</span>
+                            <span className="text-xs font-semibold text-foreground">
+                              {symbol}{item.amount.toLocaleString()}
+                              <span className="text-muted-foreground font-normal ml-1">({item.percentage}%)</span>
+                            </span>
+                          </div>
+                          <div className="h-2 rounded-full bg-muted overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${Math.min(item.percentage, 100)}%` }}
+                              transition={{ duration: 0.6, ease: "easeOut" }}
+                              className="h-full rounded-full bg-gradient-to-r from-violet-500 to-purple-500"
+                            />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground/70">{item.reason}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {budgetResult.hidden_costs.length > 0 && (
+                      <div className="rounded-xl bg-amber-500/5 border border-amber-500/15 p-3 space-y-1.5">
+                        <p className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                          <DollarSign className="h-3.5 w-3.5" />Hidden Costs to Watch
+                        </p>
+                        {budgetResult.hidden_costs.map((cost: string, i: number) => (
+                          <p key={i} className="text-[11px] text-muted-foreground pl-5">• {cost}</p>
+                        ))}
+                      </div>
+                    )}
+
+                    {budgetResult.overspending_risk && (
+                      <div className="rounded-xl bg-red-500/5 border border-red-500/15 p-3">
+                        <p className="text-xs font-medium text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                          <Navigation className="h-3.5 w-3.5" />Overspending Risk
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-1 pl-5">{budgetResult.overspending_risk}</p>
+                      </div>
+                    )}
+
+                    {budgetResult.optimization_tips.length > 0 && (
+                      <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/15 p-3 space-y-1.5">
+                        <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                          <Lightbulb className="h-3.5 w-3.5" />Money-Saving Tips
+                        </p>
+                        {budgetResult.optimization_tips.map((tip: string, i: number) => (
+                          <p key={i} className="text-[11px] text-muted-foreground pl-5">• {tip}</p>
+                        ))}
+                      </div>
+                    )}
+
+                    {budgetResult.assumptions.length > 0 && (
+                      <div className="pt-1 space-y-1">
+                        <p className="text-[10px] text-muted-foreground/60 font-medium">Assumptions</p>
+                        {budgetResult.assumptions.map((a: string, i: number) => (
+                          <p key={i} className="text-[10px] text-muted-foreground/50 pl-2">• {a}</p>
+                        ))}
+                      </div>
+                    )}
+
+                    <p className="text-[10px] text-muted-foreground/40 text-right">
+                      {budgetResult.ai_generated ? 'Powered by AI' : 'Heuristic estimate'} · {budgetResult.duration_days} days · adjust as needed
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+              </AnimatePresence>
+
+              {!budgetResult && !isEstimatingBudget && (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground">Budget could not be estimated automatically.</p>
+                  <button type="button" onClick={handleEstimateBudget} className="mt-2 text-sm text-primary underline">Try again</button>
+                </div>
+              )}
+            </>
+          )}
+        </motion.div>
+      )}
+
+      {/* Step 3: Travel Comparison + Route Visualization */}
+      {step === 3 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -790,8 +873,8 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
         </motion.div>
       )}
 
-      {/* Step 3: Interests - Spinning Wheel */}
-      {step === 3 && (
+      {/* Step 4: Interests - Spinning Wheel */}
+      {step === 4 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -894,8 +977,8 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
           <div />
         )}
 
-        {step < 3 ? (
-          step === 2 ? (
+        {step < 4 ? (
+          step === 3 ? (
             <div />
           ) : (
             <Button
@@ -904,8 +987,17 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
               disabled={!canAdvance()}
               className="bg-foreground text-background hover:bg-foreground/90"
             >
-              Continue
-              <ArrowRight className="h-4 w-4 ml-2" />
+              {step === 1 ? (
+                <>
+                  <BrainCircuit className="h-4 w-4 mr-2" />
+                  Next — Generate Budget
+                </>
+              ) : (
+                <>
+                  Continue
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </>
+              )}
             </Button>
           )
         ) : (

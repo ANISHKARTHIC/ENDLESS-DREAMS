@@ -526,6 +526,7 @@ class ApiClient {
     stay_type?: string;
     group_size?: number;
     currency?: string;
+    transport_mode?: string;
   }) {
     return this.request<BudgetEstimateResponse>('/trips/estimate-budget/', {
       method: 'POST',
