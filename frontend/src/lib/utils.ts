@@ -52,17 +52,9 @@ export function getStabilityBg(index: number): string {
 }
 
 export function getCategoryIcon(category: string): string {
-  const icons: Record<string, string> = {
-    culture: '🏛️',
-    nature: '🌿',
-    food: '🍽️',
-    adventure: '🏔️',
-    relaxation: '🧘',
-    shopping: '🛍️',
-    nightlife: '🌙',
-    landmark: '🗼',
-  };
-  return icons[category] || '📍';
+  // Returns the category key for use with CategoryIcon component
+  // Kept for backward compat — use CategoryIcon component for rendering
+  return category || 'default';
 }
 
 export function getCategoryColor(category: string): string {

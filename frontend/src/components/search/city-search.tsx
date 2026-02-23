@@ -2,9 +2,11 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, MapPin, X, Globe, Star } from "lucide-react";
+import { Search, MapPin, X, Globe, Star, Loader2 } from "lucide-react";
 import { searchCities, REGIONS, WORLD_CITIES, type WorldCity } from "@/data/world-cities";
 import { api } from "@/lib/api";
+
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
 interface CitySearchProps {
   value: string;
@@ -14,6 +16,36 @@ interface CitySearchProps {
   excludeCities?: string[];
 }
 
+/** Search Mapbox Geocoding API for cities matching query */
+async function searchMapboxCities(query: string): Promise<WorldCity[]> {
+  if (!MAPBOX_TOKEN || !query.trim()) return [];
+  try {
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&types=place&limit=8&language=en`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.features || []).map((f: Record<string, unknown>) => {
+      const coords = (f.geometry as { coordinates: number[] })?.coordinates || [0, 0];
+      const context = (f.context as { id: string; text: string }[]) || [];
+      const country = context.find((c) => c.id.startsWith("country"))?.text || "";
+      const region = context.find((c) => c.id.startsWith("region"))?.text || "";
+      return {
+        city: f.text as string,
+        country: country,
+        countryCode: "",
+        emoji: "",
+        lat: coords[1],
+        lng: coords[0],
+        description: region || country,
+        region: "Asia" as const,
+        popular: false,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
 export function CitySearch({ value, onChange, placeholder = "Search any city worldwide...", label, excludeCities = [] }: CitySearchProps) {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -21,6 +53,7 @@ export function CitySearch({ value, onChange, placeholder = "Search any city wor
   const [activeRegion, setActiveRegion] = useState<string | null>(null);
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const [dbCities, setDbCities] = useState<WorldCity[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -33,11 +66,11 @@ export function CitySearch({ value, onChange, placeholder = "Search any city wor
           city: c.city,
           country: c.country,
           countryCode: "",
-          emoji: "📍",
+          emoji: "",
           lat: c.lat,
           lng: c.lng,
-          description: `${c.place_count} places to explore`,
-          region: "Asia" as const, // default
+          description: `${c.place_count} places`,
+          region: "Asia" as const,
           popular: c.place_count >= 8,
         }));
       setDbCities(fromDb);
@@ -80,32 +113,59 @@ export function CitySearch({ value, onChange, placeholder = "Search any city wor
     setHighlightIndex(-1);
   }, [excludeCities, dbCities, allCities]);
 
-  // Also search backend for cities not in local data
+  // Also search backend DB + Mapbox geocoding for cities not in local data
   useEffect(() => {
-    if (!query.trim() || query.trim().length < 2) return;
-    const timer = setTimeout(() => {
-      api.getDestinationCities(query.trim()).then((res) => {
+    if (!query.trim() || query.trim().length < 2) {
+      setIsSearching(false);
+      return;
+    }
+    setIsSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        // Parallel: search DB + Mapbox
+        const [dbRes, mapboxResults] = await Promise.all([
+          api.getDestinationCities(query.trim()).catch(() => ({ cities: [] })),
+          searchMapboxCities(query.trim()),
+        ]);
+
         setResults((prev) => {
           const existingKeys = new Set(prev.map(c => c.city.toLowerCase()));
-          const extra: WorldCity[] = res.cities
-            .filter((c) => !existingKeys.has(c.city.toLowerCase()))
-            .map((c) => ({
-              city: c.city,
-              country: c.country,
-              countryCode: "",
-              emoji: "\uD83D\uDCCD",
-              lat: c.lat,
-              lng: c.lng,
-              description: `${c.place_count} places to explore`,
-              region: "Asia" as const,
-              popular: c.place_count >= 8,
-            }));
+          const extra: WorldCity[] = [];
+
+          // Add DB results
+          for (const c of dbRes.cities) {
+            if (!existingKeys.has(c.city.toLowerCase())) {
+              existingKeys.add(c.city.toLowerCase());
+              extra.push({
+                city: c.city,
+                country: c.country,
+                countryCode: "",
+                emoji: "",
+                lat: c.lat,
+                lng: c.lng,
+                description: `${c.place_count} places`,
+                region: "Asia" as const,
+                popular: c.place_count >= 8,
+              });
+            }
+          }
+
+          // Add Mapbox results (cities from anywhere in the world)
+          for (const c of mapboxResults) {
+            if (!existingKeys.has(c.city.toLowerCase())) {
+              existingKeys.add(c.city.toLowerCase());
+              extra.push(c);
+            }
+          }
+
           if (extra.length === 0) return prev;
-          return [...prev, ...extra].slice(0, 20);
+          return [...prev, ...extra].slice(0, 24);
         });
-      }).catch(() => {});
+      } finally {
+        setIsSearching(false);
+      }
     }, 300);
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); setIsSearching(false); };
   }, [query]);
 
   useEffect(() => {
@@ -251,7 +311,12 @@ export function CitySearch({ value, onChange, placeholder = "Search any city wor
 
             {/* Results */}
             <div className="max-h-[320px] overflow-y-auto scrollbar-hide">
-              {results.length === 0 ? (
+              {isSearching && results.length === 0 ? (
+                <div className="p-6 text-center">
+                  <Loader2 className="h-6 w-6 text-primary animate-spin mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Searching worldwide...</p>
+                </div>
+              ) : results.length === 0 ? (
                 <div className="p-6 text-center">
                   <Globe className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">No cities found</p>
@@ -261,7 +326,7 @@ export function CitySearch({ value, onChange, placeholder = "Search any city wor
                 <div className="p-1.5">
                   {results.map((city, idx) => (
                     <button
-                      key={`${city.city}-${city.country}`}
+                      key={`${city.city}-${city.country}-${idx}`}
                       type="button"
                       onClick={() => handleSelect(city)}
                       onMouseEnter={() => setHighlightIndex(idx)}
@@ -279,13 +344,18 @@ export function CitySearch({ value, onChange, placeholder = "Search any city wor
                           <span className="font-medium text-foreground text-sm">{city.city}</span>
                           {city.popular && <Star className="h-3 w-3 text-warning fill-warning" />}
                         </div>
-                        <span className="text-xs text-muted-foreground">{city.country} · {city.description}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {city.country}{city.description && city.description !== city.country ? ` · ${city.description}` : ''}
+                        </span>
                       </div>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted/50 text-muted-foreground shrink-0">
-                        {city.region}
-                      </span>
                     </button>
                   ))}
+                  {isSearching && (
+                    <div className="flex items-center gap-2 p-2.5 text-xs text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Searching more cities...
+                    </div>
+                  )}
                 </div>
               )}
             </div>

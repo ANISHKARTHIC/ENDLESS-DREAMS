@@ -10,7 +10,8 @@ import MapGL, {
 } from "react-map-gl/mapbox";
 import type { MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { cn, getCategoryIcon, formatTime } from "@/lib/utils";
+import { cn, formatTime } from "@/lib/utils";
+import { CategoryIcon } from "@/components/ui/category-icon";
 import type { ItineraryItem } from "@/types";
 import {
   Clock,
@@ -329,7 +330,7 @@ export function TripMap({
                 >
                   {idx + 1}
                 </span>
-                <span>{getCategoryIcon(item.place.category)}</span>
+                <span><CategoryIcon category={item.place.category} size="sm" /></span>
                 <span className="truncate">{item.place.name}</span>
               </div>
             ))}
@@ -502,8 +503,8 @@ export function TripMap({
                 {/* Hover tooltip */}
                 {isHovered && !isSelected && (
                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap z-50 pointer-events-none">
-                    <div className="bg-gray-900/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs text-white font-medium shadow-xl border border-white/10">
-                      {getCategoryIcon(item.place.category)}{" "}
+                    <div className="bg-gray-900/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs text-white font-medium shadow-xl border border-white/10 flex items-center gap-1.5">
+                      <CategoryIcon category={item.place.category} size="sm" />
                       {item.place.name}
                     </div>
                   </div>
@@ -529,12 +530,12 @@ export function TripMap({
               {/* Header */}
               <div className="flex items-center gap-2.5 mb-2">
                 <div
-                  className="h-9 w-9 rounded-lg flex items-center justify-center text-lg"
+                  className="h-9 w-9 rounded-lg flex items-center justify-center"
                   style={{
                     backgroundColor: `${DAY_COLORS[(selectedPlace.day_number - 1) % DAY_COLORS.length]}15`,
                   }}
                 >
-                  {getCategoryIcon(selectedPlace.place.category)}
+                  <CategoryIcon category={selectedPlace.place.category} size="lg" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-sm text-gray-900 leading-tight truncate">

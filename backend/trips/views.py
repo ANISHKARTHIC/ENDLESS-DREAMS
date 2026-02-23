@@ -1,5 +1,6 @@
 """Trip API views."""
 import json
+import logging
 import time
 import uuid
 from rest_framework import generics, permissions, status
@@ -16,6 +17,9 @@ from ai_engine.llm_layer import LLMLayer
 from places.models import Place
 from services.accommodation_service import AccommodationService
 from services.booking_insights_service import BookingInsightsService
+from services.place_discovery_service import PlaceDiscoveryService
+
+logger = logging.getLogger('trips')
 
 
 class TripListView(generics.ListAPIView):
@@ -89,9 +93,24 @@ class TripGenerateView(APIView):
             city__iexact=data['destination_city']
         ).prefetch_related('metrics')
 
+        # AI-powered place discovery: if no seeded places exist, discover dynamically
+        if not places.exists():
+            logger.info(f"No seeded places for {data['destination_city']} — using AI discovery")
+            discovery = PlaceDiscoveryService()
+            discovered = discovery.discover_places(
+                city=data['destination_city'],
+                country=data['destination_country'],
+                max_places=25,
+            )
+            if discovered:
+                # Re-query to get the QuerySet with prefetch
+                places = Place.objects.filter(
+                    city__iexact=data['destination_city']
+                ).prefetch_related('metrics')
+
         if not places.exists():
             return Response(
-                {'error': f"No places found for {data['destination_city']}. Please seed the database."},
+                {'error': f"Could not find or discover places for {data['destination_city']}. Please try another city."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 

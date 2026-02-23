@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef, useMemo } from "react";
-import MapGL, { Marker, NavigationControl } from "react-map-gl/mapbox";
-import type { MapRef } from "react-map-gl/mapbox";
+import React, { useEffect, useRef, useMemo, useCallback } from "react";
+import MapGL, { Marker, NavigationControl, Source, Layer } from "react-map-gl/mapbox";
+import type { MapRef, LayerProps } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MapPin, Navigation as NavIcon } from "lucide-react";
 
@@ -49,33 +49,54 @@ export function DestinationPreviewMap({
   }, [center]);
 
   // Arc between departure and destination
-  const arcLine = useMemo(() => {
+  const arcData = useMemo(() => {
     if (
       depLat === undefined || depLng === undefined ||
       destLat === undefined || destLng === undefined
     )
       return null;
 
-    // Generate a curved arc
     const points: [number, number][] = [];
     const steps = 50;
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
       const lat = depLat + (destLat - depLat) * t;
       const lng = depLng + (destLng - depLng) * t;
-      // Add arc height
       const arc = Math.sin(t * Math.PI) * Math.min(15, Math.abs(destLng - depLng) * 0.15);
       points.push([lng, lat + arc]);
     }
     return {
-      type: "Feature" as const,
-      properties: {},
-      geometry: {
-        type: "LineString" as const,
-        coordinates: points,
-      },
+      type: "FeatureCollection" as const,
+      features: [
+        {
+          type: "Feature" as const,
+          properties: {},
+          geometry: {
+            type: "LineString" as const,
+            coordinates: points,
+          },
+        },
+      ],
     };
   }, [depLat, depLng, destLat, destLng]);
+
+  const arcLineStyle: LayerProps = useMemo(
+    () => ({
+      id: "arc-line",
+      type: "line" as const,
+      paint: {
+        "line-color": "#06b6d4",
+        "line-width": 2.5,
+        "line-dasharray": [2, 2],
+        "line-opacity": 0.8,
+      },
+    }),
+    []
+  );
+
+  const onMapLoad = useCallback(() => {
+    // Map ready
+  }, []);
 
   if (!MAPBOX_TOKEN) {
     return (
@@ -89,7 +110,7 @@ export function DestinationPreviewMap({
   }
 
   return (
-    <div className={`rounded-2xl overflow-hidden border border-border/50 shadow-lg ${className}`}>
+    <div className={`rounded-2xl overflow-hidden border border-border/50 shadow-lg relative ${className}`}>
       <MapGL
         ref={mapRef}
         initialViewState={{
@@ -102,6 +123,7 @@ export function DestinationPreviewMap({
         mapboxAccessToken={MAPBOX_TOKEN}
         interactive={true}
         attributionControl={false}
+        onLoad={onMapLoad}
       >
         <NavigationControl position="top-right" showCompass={false} />
 
@@ -134,23 +156,10 @@ export function DestinationPreviewMap({
         )}
 
         {/* Arc line between cities */}
-        {arcLine && (
-          <>
-            {/* @ts-expect-error react-map-gl typing */}
-            <source id="arc-source" type="geojson" data={arcLine}>
-              {/* @ts-expect-error react-map-gl typing */}
-              <layer
-                id="arc-line"
-                type="line"
-                paint={{
-                  "line-color": "#06b6d4",
-                  "line-width": 2,
-                  "line-dasharray": [2, 2],
-                  "line-opacity": 0.7,
-                }}
-              />
-            </source>
-          </>
+        {arcData && (
+          <Source id="arc-source" type="geojson" data={arcData}>
+            <Layer {...arcLineStyle} />
+          </Source>
         )}
       </MapGL>
 

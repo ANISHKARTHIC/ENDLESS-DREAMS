@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { cn, formatTime, getCategoryIcon, getCategoryColor } from "@/lib/utils";
+import { cn, formatTime, getCategoryColor } from "@/lib/utils";
+import { CategoryIcon } from "@/components/ui/category-icon";
 import { Badge } from "@/components/ui/badge";
 import {
   Clock,
@@ -78,9 +79,7 @@ export function ItineraryCard({
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-lg">
-                  {getCategoryIcon(item.place.category)}
-                </span>
+                <CategoryIcon category={item.place.category} size="md" withBg />
                 <h3 className="font-semibold text-foreground truncate">
                   {item.place.name}
                 </h3>

@@ -25,7 +25,8 @@ import {
   MapPin as MapPinIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
-import { getCategoryIcon, formatTime } from "@/lib/utils";
+import { formatTime } from "@/lib/utils";
+import { CategoryIcon } from "@/components/ui/category-icon";
 import type { Itinerary, ItineraryItem } from "@/types";
 
 interface Message {
@@ -289,7 +290,7 @@ export function TripCustomizer({
                                 className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-muted/50 group transition-colors"
                               >
                                 <span className="text-sm flex-shrink-0">
-                                  {getCategoryIcon(item.place.category)}
+                                  <CategoryIcon category={item.place.category} size="sm" />
                                 </span>
                                 <span className="flex-1 text-xs font-medium text-foreground truncate">
                                   {item.place.name}
