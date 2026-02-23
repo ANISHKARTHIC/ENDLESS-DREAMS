@@ -118,20 +118,35 @@ export function TripCustomizer({
   onClose,
   onItineraryUpdate,
 }: TripCustomizerProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      role: "system",
-      content: `Hi! I'm your AI travel assistant for ${destination}. Tell me how you'd like to customize your trip, or use the quick actions below.`,
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(true);
   const [showItinerary, setShowItinerary] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Initialize/reset messages when panel opens with fresh welcome message
+  useEffect(() => {
+    if (isOpen && !initialized) {
+      setMessages([
+        {
+          id: "welcome",
+          role: "system",
+          content: `Hi! I'm your AI travel assistant for ${destination}. I can help you add more food spots, swap activities, optimize your route, adjust the budget, and more. What would you like to change?`,
+          timestamp: new Date(),
+        },
+      ]);
+      setInput("");
+      setIsLoading(false);
+      setShowQuickActions(true);
+      setInitialized(true);
+    }
+    if (!isOpen) {
+      setInitialized(false);
+    }
+  }, [isOpen, initialized, destination]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -174,7 +189,7 @@ export function TripCustomizer({
       const assistantMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: result.message,
+        content: result.message || "Done! Your itinerary has been updated.",
         changes: result.changes,
         timestamp: new Date(),
       };
@@ -184,12 +199,17 @@ export function TripCustomizer({
       if (result.itinerary) {
         onItineraryUpdate(result.itinerary);
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      const errorText =
+        err instanceof Error
+          ? err.message
+          : "Sorry, I encountered an error. Please try again or rephrase your request.";
       const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content:
-          "Sorry, I encountered an error. Please try again or rephrase your request.",
+        content: errorText.includes("detail")
+          ? "I hit a snag. Try a different phrasing, like \"Add more food spots to Day 2\"."
+          : errorText,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMsg]);

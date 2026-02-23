@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { cn, formatTime, getCategoryColor } from "@/lib/utils";
 import { CategoryIcon } from "@/components/ui/category-icon";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import {
   GripVertical,
   MapPin,
   Star,
+  ImageOff,
 } from "lucide-react";
 import type { ItineraryItem } from "@/types";
 import { motion } from "framer-motion";
@@ -32,6 +33,7 @@ export function ItineraryCard({
   dragHandleProps,
 }: ItineraryCardProps) {
   const { convertFromUsd, symbol } = useCurrency();
+  const [imgError, setImgError] = useState(false);
   const statusColors: Record<string, string> = {
     scheduled: "default",
     in_progress: "info",
@@ -52,6 +54,47 @@ export function ItineraryCard({
         item.is_locked && "border-amber-500/30 bg-amber-500/5"
       )}
     >
+      {/* Place photo banner – only shown when image_url is available */}
+      {item.place.image_url && (
+        <div className="relative w-full h-28 -mx-4 -mt-4 mb-3 overflow-hidden rounded-t-2xl">
+          {imgError ? (
+            <div className="w-full h-full bg-muted flex flex-col items-center justify-center gap-1">
+              <ImageOff className="h-6 w-6 text-muted-foreground/40" />
+              <span className="text-xs text-muted-foreground/60">{item.place.name}</span>
+            </div>
+          ) : (
+            <>
+              <img
+                src={item.place.image_url}
+                alt={item.place.name}
+                className="w-full h-full object-cover brightness-90 group-hover:brightness-100 group-hover:scale-105 transition-all duration-500"
+                onError={() => setImgError(true)}
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+              <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between">
+                <span className="text-white text-xs font-medium drop-shadow">{item.place.name}</span>
+                {Number(item.place.rating) > 0 && (
+                  <span className="flex items-center gap-0.5 text-amber-300 text-xs drop-shadow">
+                    <Star className="h-3 w-3 fill-amber-300" />
+                    {Number(item.place.rating).toFixed(1)}
+                  </span>
+                )}
+              </div>
+              <a
+                href="https://unsplash.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute top-1.5 right-2 text-white/50 hover:text-white/80 text-[9px] font-medium tracking-wide transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Unsplash
+              </a>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="flex items-start gap-3">
         {/* Drag handle */}
         {dragHandleProps && (
@@ -84,6 +127,11 @@ export function ItineraryCard({
                   {item.place.name}
                 </h3>
               </div>
+              {item.place.description && (
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                  {item.place.description}
+                </p>
+              )}
               <div className="flex items-center gap-3 mt-1.5">
                 <span
                   className={cn(

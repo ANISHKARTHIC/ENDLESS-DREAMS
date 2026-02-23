@@ -171,6 +171,29 @@ class TripGenerateView(APIView):
                 score=item_data['score'],
             )
 
+        # Enrich places with Unsplash photos (best-effort, non-blocking)
+        try:
+            from services.unsplash_service import UnsplashService
+            unsplash = UnsplashService()
+            if unsplash.is_configured:
+                seen_place_ids = set()
+                for item_data in itinerary_items:
+                    pid = item_data['place_id']
+                    if pid in seen_place_ids:
+                        continue
+                    seen_place_ids.add(pid)
+                    try:
+                        place_obj = Place.objects.get(id=pid)
+                        if not place_obj.image_url:
+                            photo = unsplash.get_place_photo(place_obj.name, place_obj.city)
+                            if photo and photo.get('url_regular'):
+                                place_obj.image_url = photo['url_regular']
+                                place_obj.save(update_fields=['image_url'])
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.warning(f'Unsplash photo enrichment skipped: {e}')
+
         # Calculate trip health
         health = TripHealthCalculator(trip, itinerary)
         trip.stability_index = health.calculate_stability_index()
@@ -179,8 +202,9 @@ class TripGenerateView(APIView):
 
         # Accommodation optimization
         accommodation_service = AccommodationService()
-        num_nights = (data['end_date'] - data['start_date']).days
-        budget_per_night = float(data['budget_usd']) / max(1, num_nights) * 0.4  # 40% of daily to stay
+        num_nights = max(1, (data['end_date'] - data['start_date']).days)
+        # Accommodation = ~35% of total budget spread over nights
+        budget_per_night = float(data['budget_usd']) * 0.35 / num_nights
 
         # Compute attraction centroid from itinerary items
         centroid = None
@@ -199,17 +223,26 @@ class TripGenerateView(APIView):
             attraction_centroid=centroid,
         )
 
-        # Deduct accommodation cost from budget
+        # ------ Recompute budget_spent_usd from scratch to avoid double-counting ------
         from decimal import Decimal
+        total_spent = Decimal('0')
+        # Travel cost
+        if trip.selected_travel_option:
+            tc = float(trip.selected_travel_option.price_usd) if trip.selected_travel_option.price_usd else float(trip.selected_travel_option.price_inr) / 83.5
+            total_spent += Decimal(str(round(tc, 2)))
+        # Accommodation cost
         accommodation_cost = accommodation[0]['total_cost_usd'] if accommodation else 0
         if accommodation_cost:
-            trip.budget_spent_usd += Decimal(str(round(float(accommodation_cost), 2)))
-
-        # Also add up itinerary activity costs
+            total_spent += Decimal(str(round(float(accommodation_cost), 2)))
+        # Activity costs
         total_activity_cost = sum(item.get('estimated_cost_usd', 0) for item in itinerary_items)
         if total_activity_cost:
-            trip.budget_spent_usd += Decimal(str(round(total_activity_cost, 2)))
+            total_spent += Decimal(str(round(total_activity_cost, 2)))
+        # Estimate meal costs: ~15% of total budget
+        meal_estimate = Decimal(str(round(float(data['budget_usd']) * 0.15, 2)))
+        total_spent += meal_estimate
 
+        trip.budget_spent_usd = min(total_spent, Decimal(str(data['budget_usd'])))
         trip.save()
 
         # Booking insights

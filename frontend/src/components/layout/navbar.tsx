@@ -43,6 +43,14 @@ export function Navbar() {
     setIsLoggedIn(!!token);
   }, []);
 
+  const [themeAnimating, setThemeAnimating] = useState(false);
+
+  const handleThemeToggle = () => {
+    setThemeAnimating(true);
+    setTheme(theme === "dark" ? "light" : "dark");
+    setTimeout(() => setThemeAnimating(false), 600);
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
@@ -143,22 +151,24 @@ export function Navbar() {
               </div>
 
               <button
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                onClick={handleThemeToggle}
                 className={cn(
-                  "p-2.5 rounded-xl transition-all duration-200",
+                  "p-2.5 rounded-xl transition-all duration-200 group relative overflow-hidden",
                   "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
                 aria-label="Toggle theme"
               >
-                {mounted ? (
-                  theme === "dark" ? (
-                    <Sun className="h-4.5 w-4.5" />
+                <span className={cn("block transition-transform duration-500", themeAnimating && "rotate-[360deg]")}>
+                  {mounted ? (
+                    theme === "dark" ? (
+                      <Sun className="h-4.5 w-4.5 text-amber-400" />
+                    ) : (
+                      <Moon className="h-4.5 w-4.5 text-indigo-400" />
+                    )
                   ) : (
                     <Moon className="h-4.5 w-4.5" />
-                  )
-                ) : (
-                  <Moon className="h-4.5 w-4.5" />
-                )}
+                  )}
+                </span>
               </button>
 
               <div className="hidden md:block">
