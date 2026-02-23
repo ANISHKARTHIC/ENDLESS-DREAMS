@@ -64,6 +64,8 @@ import {
   ListChecks,
   Camera,
   Share2,
+  FileDown,
+  Eye,
 } from "lucide-react";
 
 export default function TripDetailPage() {
@@ -84,6 +86,7 @@ export default function TripDetailPage() {
   );
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [activeUsers, setActiveUsers] = useState<{ username: string; id: string }[]>([]);
   const { convert, symbol } = useCurrency();
 
   // Determine if trip is happening today
@@ -139,6 +142,11 @@ export default function TripDetailPage() {
         break;
       case "replan_notification":
         api.getReplanEvents(tripId).then((r) => setEvents(r.results || [])).catch(() => {});
+        break;
+      case "presence_update":
+        if (lastMessage.data && Array.isArray((lastMessage.data as any).users)) {
+          setActiveUsers((lastMessage.data as any).users);
+        }
         break;
     }
   }, [lastMessage, tripId]);
@@ -272,8 +280,44 @@ export default function TripDetailPage() {
               </div>
 
               <div className="flex items-center gap-3">
+                {/* Collaboration presence avatars */}
+                {activeUsers.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex -space-x-2">
+                      {activeUsers.slice(0, 4).map((u, i) => (
+                        <div
+                          key={u.id || i}
+                          className="h-7 w-7 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[10px] font-bold text-white border-2 border-background ring-2 ring-success/30"
+                          title={u.username}
+                        >
+                          {u.username?.charAt(0).toUpperCase() || "?"}
+                        </div>
+                      ))}
+                      {activeUsers.length > 4 && (
+                        <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground border-2 border-background">
+                          +{activeUsers.length - 4}
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground hidden sm:inline">
+                      {activeUsers.length} editing
+                    </span>
+                  </div>
+                )}
                 {health && <StabilityBadge health={health} />}
                 {weather && <WeatherOverlay weather={weather} compact />}
+                {/* PDF Export Button */}
+                <Button
+                  variant="outline"
+                  className="border-accent/30 hover:border-accent/50 hover:bg-accent/5 text-accent"
+                  onClick={() => {
+                    const url = api.getTripPDFUrl(tripId);
+                    window.open(url, "_blank");
+                  }}
+                >
+                  <FileDown className="h-4 w-4 mr-1.5" />
+                  <span className="hidden sm:inline">Export</span>
+                </Button>
                 {/* Customize Button */}
                 <Button
                   variant="outline"
@@ -281,7 +325,7 @@ export default function TripDetailPage() {
                   onClick={() => setIsCustomizerOpen(true)}
                 >
                   <Settings2 className="h-4 w-4 mr-1.5" />
-                  Customize
+                  <span className="hidden sm:inline">Customize</span>
                 </Button>
               </div>
             </div>

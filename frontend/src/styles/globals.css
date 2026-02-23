@@ -381,3 +381,249 @@
 .pulse-ring {
   animation: pulse-ring 1.5s infinite;
 }
+
+/* ═══════════ MOBILE RESPONSIVE ═══════════ */
+
+/* Touch-friendly targets */
+@media (max-width: 640px) {
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Stack header buttons vertically on very small screens */
+  .glass-card .flex.items-center.gap-3 {
+    flex-wrap: wrap;
+  }
+
+  /* Full-width cards on mobile */
+  .glass-card {
+    border-radius: 0.75rem;
+  }
+
+  /* Compact tab navigation */
+  .scrollbar-hide {
+    gap: 2px;
+  }
+
+  /* Reduce hero text sizes */
+  .hero-title {
+    font-size: 2.5rem;
+    line-height: 1.1;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Tighter padding on tablets */
+  main {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Sidebar stacks below main content on mobile */
+  .grid.lg\:grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+
+  /* Make section padding smaller */
+  section {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+}
+
+/* Safe area insets for notched devices */
+@supports(padding: env(safe-area-inset-bottom)) {
+  .footer-safe {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* Better tap highlight */
+@media (pointer: coarse) {
+  * {
+    -webkit-tap-highlight-color: rgba(14, 165, 233, 0.15);
+  }
+}
+
+/* ═══════════ WANDERLOG-STYLE POLISH ═══════════ */
+
+/* Elevated card style */
+.wanderlog-card {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 6px 24px rgba(0, 0, 0, 0.03);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.wanderlog-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 12px 40px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+.dark .wanderlog-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 6px 24px rgba(0, 0, 0, 0.15);
+}
+
+.dark .wanderlog-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+/* Presence avatar stack animation */
+@keyframes avatar-pop {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.avatar-pop {
+  animation: avatar-pop 0.3s ease-out both;
+}
+
+/* Collaboration typing indicator */
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4px); }
+}
+
+.typing-dot:nth-child(1) { animation: typing-dot 1.4s infinite 0s; }
+.typing-dot:nth-child(2) { animation: typing-dot 1.4s infinite 0.2s; }
+.typing-dot:nth-child(3) { animation: typing-dot 1.4s infinite 0.4s; }
+
+/* PDF export button glow */
+.export-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.export-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.export-btn:hover::after {
+  opacity: 1;
+}
+
+/* Smooth page transitions */
+.page-enter {
+  animation: page-enter 0.4s ease-out both;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Destination card overlay gradient */
+.destination-overlay {
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.7) 0%,
+    rgba(0, 0, 0, 0.3) 40%,
+    transparent 100%
+  );
+}
+
+/* Tab underline indicator style (Wanderlog-like) */
+.tab-indicator {
+  position: relative;
+}
+
+.tab-indicator::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%) scaleX(0);
+  width: 60%;
+  height: 2px;
+  background: var(--color-primary);
+  border-radius: 1px;
+  transition: transform 0.2s ease;
+}
+
+.tab-indicator.active::after {
+  transform: translateX(-50%) scaleX(1);
+}
+
+/* Badge styles */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Unsplash attribution link style */
+.unsplash-credit {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.unsplash-credit:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Interactive map markers */
+.map-marker-pulse {
+  position: relative;
+}
+
+.map-marker-pulse::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  opacity: 0;
+  animation: marker-pulse 2s ease-out infinite;
+}
+
+@keyframes marker-pulse {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+/* Smooth number counter */
+.number-counter {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Print styles for PDF-like experience */
+@media print {
+  .glass-card {
+    background: white !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+  }
+
+  nav, footer, button, .scrollbar-hide {
+    display: none !important;
+  }
+
+  main {
+    padding-top: 0 !important;
+  }
+}

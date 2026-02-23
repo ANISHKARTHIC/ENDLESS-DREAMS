@@ -147,33 +147,78 @@ Risk level: {score_breakdown.get('risk', 0):.2f}"""
 
     def generate_trip_summary(self, trip_data: Dict, itinerary_items: list) -> str:
         """Generate a narrative trip summary."""
-        system_prompt = """You are a travel writer. Create a brief, engaging summary of this trip itinerary.
-Keep it under 150 words. Be inspiring but informative. Mention highlights."""
+        system_prompt = """You are a world-class travel writer for a premium platform called 'The Endless Dreams'.
+Create a captivating, personalized trip summary that reads like a story.
+Structure: Opening hook → Day-by-day highlights → Closing inspiration.
+Keep it under 200 words. Use vivid sensory language. Mention specific place names.
+Tone: warm, inspiring, knowledgeable — like a friend who has been everywhere."""
 
-        places_text = ", ".join([
-            f"{item.get('place_name', 'Unknown')} (Day {item.get('day_number', '?')})"
-            for item in itinerary_items[:10]
+        places_text = "\n".join([
+            f"- Day {item.get('day_number', '?')}: {item.get('place_name', 'Unknown')} ({item.get('category', 'activity')})"
+            for item in itinerary_items[:15]
         ])
 
         user_prompt = f"""Trip: {trip_data.get('title', 'Trip')}
 Destination: {trip_data.get('destination_city', 'Unknown')}, {trip_data.get('destination_country', '')}
 Duration: {trip_data.get('duration_days', '?')} days
-Places: {places_text}"""
+Budget: ${trip_data.get('budget_usd', '?')} USD
+Pace: {trip_data.get('pace', 'moderate')}
+Group size: {trip_data.get('group_size', 1)}
 
-        return self._call_llm(system_prompt, user_prompt, max_tokens=250)
+Itinerary:
+{places_text}
+
+Write a compelling narrative summary of this trip."""
+
+        return self._call_llm(system_prompt, user_prompt, max_tokens=400)
 
     def chat_response(self, message: str, trip_context: Optional[Dict] = None) -> str:
         """Handle general chat about the trip."""
-        system_prompt = """You are a helpful AI travel assistant for 'The Endless Dreams' travel platform.
-Help users with their trip questions. Be concise, helpful, and friendly.
-If asked about modifying the itinerary, explain what changes could be made.
-Never generate routes or optimize plans - only provide information and suggestions."""
+        system_prompt = """You are the AI travel concierge for 'The Endless Dreams' — a premium AI travel platform.
+
+Personality: Warm, knowledgeable, proactive. You're like a well-traveled friend who always knows the best spots.
+Expertise: Local cuisine, hidden gems, cultural etiquette, budget optimization, safety tips, transportation.
+
+Guidelines:
+- Give specific, actionable advice (restaurant names, exact costs, timing tips)
+- Proactively suggest things the user might not have thought of
+- If they ask about modifying the itinerary, explain what's possible
+- Use a conversational but professional tone
+- Keep responses concise but helpful (3-5 sentences max)
+- Never invent fake place names — use real ones or say "I'd recommend looking for..."
+- If unsure, be honest and suggest alternatives"""
 
         context = ""
         if trip_context:
             context = f"\n\nCurrent trip context: {json.dumps(trip_context, default=str)}"
 
-        return self._call_llm(system_prompt, message + context, max_tokens=300)
+        return self._call_llm(system_prompt, message + context, max_tokens=400)
+
+    def generate_packing_suggestions(self, trip_data: Dict) -> str:
+        """Generate smart packing suggestions based on trip details."""
+        system_prompt = """You are a travel packing expert. Generate a practical packing list.
+Return ONLY a JSON array of strings, each being a packing item.
+Consider: destination weather, activities planned, trip duration, cultural norms.
+Keep it to 15-20 essential items. Be specific (e.g., "lightweight rain jacket" not just "jacket")."""
+
+        user_prompt = f"""Destination: {trip_data.get('destination_city', 'Unknown')}, {trip_data.get('destination_country', '')}
+Duration: {trip_data.get('duration_days', '?')} days
+Activities: {trip_data.get('interests', 'general sightseeing')}
+Season: {trip_data.get('season', 'unknown')}
+
+Generate packing list as JSON array."""
+
+        return self._call_llm(system_prompt, user_prompt, max_tokens=300)
+
+    def suggest_local_tips(self, city: str, country: str) -> str:
+        """Generate local insider tips for a destination."""
+        system_prompt = """You are a local travel expert. Provide 5 insider tips for visiting this city.
+Return ONLY a JSON array of objects with 'tip' and 'category' fields.
+Categories: food, transport, culture, safety, money-saving.
+Tips should be specific, actionable, and not commonly known."""
+
+        user_prompt = f"Give 5 insider travel tips for {city}, {country}."
+        return self._call_llm(system_prompt, user_prompt, max_tokens=400)
 
     @staticmethod
     def _fallback_response(prompt: str) -> str:

@@ -470,6 +470,50 @@ class ApiClient {
       method: 'PUT', body: JSON.stringify(data),
     });
   }
+
+  // ──── Google OAuth ────
+  async googleLogin(credential: string) {
+    const result = await this.request<{
+      user: import('@/types').User;
+      tokens: { access: string; refresh: string };
+      created: boolean;
+    }>('/auth/google/', {
+      method: 'POST',
+      body: JSON.stringify({ credential }),
+    });
+    if (result.tokens) {
+      localStorage.setItem('access_token', result.tokens.access);
+      localStorage.setItem('refresh_token', result.tokens.refresh);
+    }
+    return result;
+  }
+
+  // ──── Unsplash Photos ────
+  async getUnsplashPhotos(params: { q?: string; city?: string; place?: string; count?: number }) {
+    const query = new URLSearchParams();
+    if (params.q) query.set('q', params.q);
+    if (params.city) query.set('city', params.city);
+    if (params.place) query.set('place', params.place);
+    if (params.count) query.set('count', params.count.toString());
+    return this.request<{
+      photos: Array<{
+        id: string;
+        url_full: string;
+        url_regular: string;
+        url_small: string;
+        url_thumb: string;
+        description: string;
+        photographer: string;
+        photographer_url: string;
+        attribution: string;
+      }>;
+    }>(`/photos/unsplash/?${query.toString()}`);
+  }
+
+  // ──── PDF Export ────
+  getTripPDFUrl(tripId: string): string {
+    return `${this.baseUrl}/trips/${tripId}/export/pdf/`;
+  }
 }
 
 export const api = new ApiClient();

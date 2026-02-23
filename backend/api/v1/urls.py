@@ -2,7 +2,7 @@
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from users.views import RegisterView, ProfileView, PreferencesView, LogoutView
+from users.views import RegisterView, ProfileView, PreferencesView, LogoutView, GoogleOAuthView
 from trips.views import (
     TripListView, TripDetailView, TripGenerateView, TripHealthView,
     AccommodationView, BookingInsightsView, TripCustomizeView, TripAIChatView,
@@ -22,6 +22,8 @@ from trips.views import (
     SavedPlaceListCreateView, SavedPlaceDeleteView,
     # Explore
     ExploreDestinationsView,
+    # New: Unsplash + PDF
+    UnsplashPhotosView, TripPDFExportView,
 )
 from itineraries.views import (
     ItineraryDetailView, ItineraryByTripView, ActiveItineraryView,
@@ -38,6 +40,7 @@ urlpatterns = [
     path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/logout/', LogoutView.as_view(), name='logout'),
+    path('auth/google/', GoogleOAuthView.as_view(), name='google-oauth'),
 
     # User
     path('user/profile/', ProfileView.as_view(), name='profile'),
@@ -83,6 +86,12 @@ urlpatterns = [
 
     # Explore
     path('explore/', ExploreDestinationsView.as_view(), name='explore'),
+
+    # Unsplash Photos
+    path('photos/unsplash/', UnsplashPhotosView.as_view(), name='unsplash-photos'),
+
+    # PDF Export
+    path('trips/<uuid:trip_id>/export/pdf/', TripPDFExportView.as_view(), name='trip-pdf-export'),
 
     # Itineraries
     path('itineraries/<uuid:id>/', ItineraryDetailView.as_view(), name='itinerary-detail'),

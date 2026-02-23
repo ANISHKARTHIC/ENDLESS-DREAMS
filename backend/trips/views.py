@@ -3,9 +3,11 @@ import json
 import logging
 import time
 import uuid
+from datetime import datetime
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.http import HttpResponse
 from .models import Trip, TripNote, TripChecklist, ChecklistItem, TripExpense, TripPhoto, TripShare, TripCollaborator, SavedPlace
 from .serializers import (
     TripSerializer, TripListSerializer, TripCreateSerializer,
@@ -831,6 +833,7 @@ class ExploreDestinationsView(APIView):
 
     def get(self, request):
         from django.db.models import Count, Avg
+        from services.unsplash_service import UnsplashService
 
         category = request.query_params.get('category', '')
         search = request.query_params.get('q', '').strip()
@@ -849,6 +852,7 @@ class ExploreDestinationsView(APIView):
                 avg_rating=Avg('rating'),
             ).filter(place_count__gte=1).order_by('-avg_rating')
 
+        unsplash = UnsplashService()
         results = []
         for c in cities[:30]:
             # Get top categories for this city
@@ -860,9 +864,15 @@ class ExploreDestinationsView(APIView):
             )
             cat_list = [cat['category'] for cat in cats]
 
-            # Get a representative image
-            img_place = Place.objects.filter(city=c['city'], image_url__isnull=False).exclude(image_url='').first()
-            image_url = img_place.image_url if img_place else None
+            # Get a representative image — try Unsplash first, then DB
+            image_url = None
+            if unsplash.is_configured:
+                photo = unsplash.get_city_photo(c['city'], c['country'])
+                if photo:
+                    image_url = photo.get('url_regular') or photo.get('url_small')
+            if not image_url:
+                img_place = Place.objects.filter(city=c['city'], image_url__isnull=False).exclude(image_url='').first()
+                image_url = img_place.image_url if img_place else None
 
             # Estimate budget range
             avg_cost = Place.objects.filter(city=c['city']).aggregate(Avg('avg_cost_usd'))['avg_cost_usd__avg'] or 30
@@ -879,3 +889,159 @@ class ExploreDestinationsView(APIView):
             })
 
         return Response({'destinations': results})
+
+
+# ═══════════ Unsplash Photos for Destinations ═══════════
+
+class UnsplashPhotosView(APIView):
+    """Fetch Unsplash photos for a city or place."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from services.unsplash_service import UnsplashService
+
+        query = request.query_params.get('q', '').strip()
+        city = request.query_params.get('city', '').strip()
+        place = request.query_params.get('place', '').strip()
+        count = min(int(request.query_params.get('count', '4')), 10)
+
+        unsplash = UnsplashService()
+        if not unsplash.is_configured:
+            return Response({'photos': [], 'error': 'Unsplash not configured'})
+
+        if query:
+            photos = unsplash.search_photos(query, per_page=count)
+        elif place and city:
+            photos = unsplash.search_photos(f'{place} {city} travel', per_page=count)
+        elif city:
+            photos = unsplash.get_destination_photos(city, count=count)
+        else:
+            return Response({'photos': [], 'error': 'Provide q, city, or place parameter'})
+
+        return Response({'photos': photos})
+
+
+# ═══════════ PDF Export ═══════════
+
+class TripPDFExportView(APIView):
+    """Generate a PDF of the trip itinerary."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, trip_id):
+        try:
+            trip = Trip.objects.get(id=trip_id)
+        except Trip.DoesNotExist:
+            return Response({'error': 'Trip not found'}, status=404)
+
+        itinerary = trip.itineraries.filter(is_active=True).first()
+        items = itinerary.items.select_related('place').order_by('day_number', 'order') if itinerary else []
+
+        # Build PDF as text content (lightweight — no external PDF lib needed)
+        # We generate a rich HTML document that browsers can print/save as PDF
+        html = self._build_pdf_html(trip, items)
+
+        response = HttpResponse(html, content_type='text/html')
+        response['Content-Disposition'] = f'inline; filename="trip-{trip.destination_city}-itinerary.html"'
+        return response
+
+    def _build_pdf_html(self, trip, items):
+        """Build a printable HTML itinerary."""
+        days = {}
+        for item in items:
+            days.setdefault(item.day_number, []).append(item)
+
+        day_rows = ''
+        for day_num in sorted(days.keys()):
+            day_items = days[day_num]
+            day_rows += f'''
+            <div class="day-section">
+                <h2 class="day-header">Day {day_num}</h2>
+                <div class="items">'''
+            for item in day_items:
+                place = item.place
+                day_rows += f'''
+                    <div class="item">
+                        <div class="time">{item.start_time or ''} - {item.end_time or ''}</div>
+                        <div class="details">
+                            <h3>{place.name if place else 'Unknown'}</h3>
+                            <p class="category">{place.category if place else ''} · {item.duration_minutes} min</p>
+                            <p class="desc">{place.description[:120] if place and place.description else ''}</p>
+                            {f'<p class="cost">${float(item.estimated_cost_usd):.0f}</p>' if item.estimated_cost_usd else ''}
+                        </div>
+                    </div>'''
+            day_rows += '</div></div>'
+
+        # Calculate totals
+        total_cost = sum(float(i.estimated_cost_usd or 0) for i in items)
+        total_activities = len(items)
+
+        return f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{trip.destination_city} Trip Itinerary - Endless Dreams</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+  body {{ font-family: 'Inter', sans-serif; color: #1a1a2e; background: #fff; padding: 40px; max-width: 800px; margin: 0 auto; }}
+  .header {{ text-align: center; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 2px solid #0ea5e9; }}
+  .header .logo {{ font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: #0ea5e9; margin-bottom: 8px; }}
+  .header h1 {{ font-size: 32px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }}
+  .header .subtitle {{ color: #6b7280; font-size: 14px; }}
+  .meta {{ display: flex; justify-content: center; gap: 24px; margin-top: 16px; flex-wrap: wrap; }}
+  .meta span {{ font-size: 13px; color: #6b7280; }}
+  .meta strong {{ color: #1a1a2e; }}
+  .stats {{ display: flex; justify-content: center; gap: 32px; margin: 24px 0 32px; padding: 16px; background: #f5f7fa; border-radius: 12px; }}
+  .stats .stat {{ text-align: center; }}
+  .stats .stat-value {{ font-size: 24px; font-weight: 700; color: #0ea5e9; }}
+  .stats .stat-label {{ font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; }}
+  .day-section {{ margin-bottom: 32px; page-break-inside: avoid; }}
+  .day-header {{ font-size: 18px; font-weight: 600; color: #0ea5e9; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; }}
+  .items {{ display: flex; flex-direction: column; gap: 12px; }}
+  .item {{ display: flex; gap: 16px; padding: 12px; border: 1px solid #e5e7eb; border-radius: 10px; }}
+  .item .time {{ font-size: 12px; font-weight: 500; color: #0ea5e9; min-width: 100px; padding-top: 2px; }}
+  .item .details h3 {{ font-size: 15px; font-weight: 600; }}
+  .item .details .category {{ font-size: 12px; color: #6b7280; margin-top: 2px; text-transform: capitalize; }}
+  .item .details .desc {{ font-size: 12px; color: #9ca3af; margin-top: 4px; }}
+  .item .details .cost {{ font-size: 12px; font-weight: 500; color: #059669; margin-top: 4px; }}
+  .footer {{ margin-top: 40px; text-align: center; font-size: 11px; color: #9ca3af; padding-top: 16px; border-top: 1px solid #e5e7eb; }}
+  @media print {{ body {{ padding: 20px; }} .day-section {{ page-break-inside: avoid; }} }}
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">✈ Endless Dreams</div>
+    <h1>{trip.destination_city}, {trip.destination_country}</h1>
+    <div class="subtitle">{trip.title or 'AI-Generated Itinerary'}</div>
+    <div class="meta">
+      <span>📅 <strong>{trip.start_date} → {trip.end_date}</strong></span>
+      <span>⏱ <strong>{trip.duration_days} days</strong></span>
+      <span>👥 <strong>{trip.group_size} travelers</strong></span>
+      <span>🎯 <strong>{trip.pace} pace</strong></span>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-value">{total_activities}</div>
+      <div class="stat-label">Activities</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{trip.duration_days}</div>
+      <div class="stat-label">Days</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">${total_cost:.0f}</div>
+      <div class="stat-label">Est. Cost</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">${float(trip.budget_usd):.0f}</div>
+      <div class="stat-label">Budget</div>
+    </div>
+  </div>
+  {day_rows}
+  <div class="footer">
+    Generated by The Endless Dreams · AI Travel Intelligence · {datetime.now().strftime('%B %d, %Y')}
+  </div>
+</body>
+</html>'''

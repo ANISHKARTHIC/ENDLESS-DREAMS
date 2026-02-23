@@ -235,7 +235,7 @@ export interface ReplanEvent {
 }
 
 export interface WSMessage {
-  type: 'replan_notification' | 'weather_update' | 'health_update' | 'ai_response' | 'itinerary_update' | 'connection_established';
+  type: 'replan_notification' | 'weather_update' | 'health_update' | 'ai_response' | 'itinerary_update' | 'connection_established' | 'presence_update' | 'collab_note_update' | 'collab_expense_update' | 'collab_checklist_update' | 'collab_cursor' | 'collab_typing';
   data?: Record<string, unknown>;
   message?: string;
 }
