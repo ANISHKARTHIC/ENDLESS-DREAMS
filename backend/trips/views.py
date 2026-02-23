@@ -1066,8 +1066,14 @@ class TripPDFExportView(APIView):
 
 
 class BudgetEstimateView(APIView):
-    """AI-powered budget estimation for a trip."""
+    """AI-powered intelligent financial planner for trip budgets."""
     permission_classes = [permissions.AllowAny]
+
+    # Map stay_type / pace to a preference tier
+    PREFERENCE_MAP = {
+        'hostel': 'low cost', 'hotel': 'balanced', 'any': 'balanced',
+        'resort': 'premium', 'airbnb': 'balanced', 'boutique': 'premium',
+    }
 
     def post(self, request):
         destination_city = request.data.get('destination_city', '')
@@ -1084,7 +1090,7 @@ class BudgetEstimateView(APIView):
             return Response({'error': 'destination_city is required'}, status=400)
 
         # Calculate duration
-        duration_days = 5  # default
+        duration_days = 5
         if start_date and end_date:
             try:
                 from datetime import datetime as dt
@@ -1094,94 +1100,118 @@ class BudgetEstimateView(APIView):
             except (ValueError, TypeError):
                 pass
 
+        preference = self.PREFERENCE_MAP.get(stay_type, 'balanced')
+        if pace == 'fast':
+            preference = 'premium' if preference == 'balanced' else preference
+        elif pace == 'relaxed' and preference == 'balanced':
+            preference = 'low cost'
+
         llm = LLMLayer()
 
-        system_prompt = f"""You are an expert travel budget advisor for 'The Endless Dreams' — a premium AI travel platform.
+        system_prompt = f"""You are an intelligent financial planning assistant specialized in realistic travel budget allocation and optimization for 'The Endless Dreams' — a premium AI travel platform.
 
-Estimate a realistic total trip budget in {currency} for the given trip details.
+Your responsibilities:
+1. Understand the trip's budget goal and financial constraints.
+2. Allocate the budget into logical categories based on the trip details.
+3. Ensure the total allocation ALWAYS equals the total budget you recommend.
+4. Predict hidden or unexpected expenses travellers often miss.
+5. Suggest optimization tips to save money without reducing essential quality.
+6. Detect overspending risks and warn the user.
+7. Adapt allocation based on user preference: "{preference}".
+8. Provide clear reasoning for allocation decisions.
 
-Return ONLY valid JSON with these exact fields:
-- "budget": number (total estimated budget in the requested currency, as a round number)
-- "breakdown": object with keys "accommodation", "food", "activities", "transport", "misc" — each a number (estimated spend per category in {currency})
-- "tips": array of 2-3 short money-saving tips specific to the destination
-- "confidence": "low" | "medium" | "high"
+Strict rules:
+- Never exceed the total budget.
+- Avoid unrealistic price assumptions.
+- Prefer practical and real-world suggestions specific to the destination.
+- If information is missing, make reasonable assumptions and mention them.
+- Keep explanations short and useful.
+- All amounts must be in {currency}.
 
-Consider:
-- Local cost of living at the destination
-- Season / time of year
-- Accommodation type preference
-- Travel pace (more activities = more spend)
-- Group size (some costs are shared)
-- Domestic transport within the city
-- Popular/typical food and activity costs
-- The budget should be realistic, not too conservative nor too generous
-
-Return ONLY the JSON object, no markdown, no explanation."""
+Return ONLY valid JSON (no markdown, no explanation) in this EXACT structure:
+{{
+  "goal": "<one-line trip budget goal>",
+  "budget": <total recommended budget as a round number>,
+  "assumptions": ["<assumption1>", "<assumption2>"],
+  "allocation": [
+    {{ "category": "Accommodation", "amount": 0, "percentage": 0, "reason": "" }},
+    {{ "category": "Food & Dining", "amount": 0, "percentage": 0, "reason": "" }},
+    {{ "category": "Activities & Sightseeing", "amount": 0, "percentage": 0, "reason": "" }},
+    {{ "category": "Local Transport", "amount": 0, "percentage": 0, "reason": "" }},
+    {{ "category": "Shopping & Misc", "amount": 0, "percentage": 0, "reason": "" }}
+  ],
+  "hidden_costs": ["<hidden cost 1>", "<hidden cost 2>"],
+  "optimization_tips": ["<tip 1>", "<tip 2>", "<tip 3>"],
+  "overspending_risk": "<short warning about the biggest risk>",
+  "confidence": "low" | "medium" | "high"
+}}"""
 
         user_prompt = f"""Trip details:
 - Destination: {destination_city}, {destination_country}
-- Departure: {departure_city or 'Not specified'}
+- Departure city: {departure_city or 'Not specified'}
 - Duration: {duration_days} days
-- Pace: {pace}
+- Travel pace: {pace}
 - Accommodation preference: {stay_type}
-- Group size: {group_size}
+- Group size: {group_size} {'person' if group_size == 1 else 'people'}
 - Dates: {start_date or 'flexible'} to {end_date or 'flexible'}
 - Currency: {currency}
+- Budget preference: {preference}
 
-Estimate the total trip budget in {currency}."""
+Estimate a realistic total trip budget in {currency} and break it down."""
 
         try:
-            response = llm._call_llm(system_prompt, user_prompt, max_tokens=500)
+            response = llm._call_llm(system_prompt, user_prompt, max_tokens=800)
 
-            # Try to parse JSON response
             import re as _re
-            # Strip markdown code fences if present
             cleaned = _re.sub(r'^```(?:json)?\s*', '', response.strip())
             cleaned = _re.sub(r'\s*```$', '', cleaned)
 
             result = json.loads(cleaned)
 
-            # Ensure budget is a number
             budget = result.get('budget', 0)
             if not isinstance(budget, (int, float)) or budget <= 0:
                 raise ValueError('Invalid budget value')
 
+            # Normalise allocation — ensure amounts sum to budget
+            allocation = result.get('allocation', [])
+            alloc_sum = sum(a.get('amount', 0) for a in allocation)
+            if allocation and alloc_sum > 0 and abs(alloc_sum - budget) > 1:
+                factor = budget / alloc_sum
+                for a in allocation:
+                    a['amount'] = round(a['amount'] * factor)
+                    a['percentage'] = round(a['amount'] / budget * 100)
+
             return Response({
                 'budget': round(budget),
-                'breakdown': result.get('breakdown', {}),
-                'tips': result.get('tips', []),
+                'goal': result.get('goal', f'{duration_days}-day trip to {destination_city}'),
+                'assumptions': result.get('assumptions', []),
+                'allocation': allocation,
+                'hidden_costs': result.get('hidden_costs', []),
+                'optimization_tips': result.get('optimization_tips', []),
+                'overspending_risk': result.get('overspending_risk', ''),
                 'confidence': result.get('confidence', 'medium'),
                 'currency': currency,
                 'duration_days': duration_days,
+                'preference': preference,
                 'ai_generated': True,
             })
         except (json.JSONDecodeError, ValueError, KeyError) as e:
             logger.warning(f'AI budget estimation failed to parse: {e}')
-            # Fallback: heuristic estimation
             return Response(self._fallback_estimate(
                 destination_city, destination_country, duration_days,
-                pace, stay_type, group_size, currency
+                pace, stay_type, group_size, currency, preference
             ))
 
     @staticmethod
-    def _fallback_estimate(city, country, days, pace, stay_type, group_size, currency):
-        """Heuristic budget estimation when LLM is unavailable."""
-        # Base daily costs in USD
+    def _fallback_estimate(city, country, days, pace, stay_type, group_size, currency, preference):
+        """Heuristic financial planner when LLM is unavailable."""
         COST_TIERS = {
-            'budget': {'accommodation': 30, 'food': 20, 'activities': 15, 'transport': 10, 'misc': 10},
-            'mid': {'accommodation': 80, 'food': 40, 'activities': 30, 'transport': 20, 'misc': 15},
-            'premium': {'accommodation': 200, 'food': 80, 'activities': 60, 'transport': 40, 'misc': 25},
+            'low cost':  {'Accommodation': 30, 'Food & Dining': 20, 'Activities & Sightseeing': 15, 'Local Transport': 10, 'Shopping & Misc': 10},
+            'balanced':  {'Accommodation': 80, 'Food & Dining': 40, 'Activities & Sightseeing': 30, 'Local Transport': 20, 'Shopping & Misc': 15},
+            'premium':   {'Accommodation': 200, 'Food & Dining': 80, 'Activities & Sightseeing': 60, 'Local Transport': 40, 'Shopping & Misc': 25},
         }
+        daily = COST_TIERS.get(preference, COST_TIERS['balanced'])
 
-        # Map stay_type to cost tier
-        tier_map = {
-            'hostel': 'budget', 'hotel': 'mid', 'any': 'mid',
-            'resort': 'premium', 'airbnb': 'mid', 'boutique': 'premium',
-        }
-        tier = tier_map.get(stay_type, 'mid')
-        daily = COST_TIERS[tier]
-
-        # Region multiplier (rough)
         EXPENSIVE = ['japan', 'switzerland', 'norway', 'iceland', 'australia', 'singapore', 'united kingdom', 'france']
         CHEAP = ['india', 'vietnam', 'thailand', 'indonesia', 'cambodia', 'nepal', 'sri lanka', 'egypt', 'morocco', 'mexico', 'colombia', 'peru']
         country_lower = (country or '').lower()
@@ -1192,43 +1222,65 @@ Estimate the total trip budget in {currency}."""
         else:
             multiplier = 1.0
 
-        # Pace multiplier
         pace_mult = {'relaxed': 0.85, 'moderate': 1.0, 'fast': 1.2}.get(pace, 1.0)
 
-        breakdown_usd = {}
-        for cat, base in daily.items():
-            cost = base * days * multiplier * pace_mult
-            if cat == 'accommodation':
-                # Accommodation shared for group
-                cost = cost  # per-room price, roughly same
-            elif cat in ('food', 'activities', 'misc'):
-                cost = cost * group_size
-            breakdown_usd[cat] = round(cost)
-
-        total_usd = sum(breakdown_usd.values())
-
-        # Currency conversion factors (approximate, from USD)
         CURRENCY_RATES = {
             'USD': 1, 'INR': 83, 'EUR': 0.92, 'GBP': 0.79, 'JPY': 150,
             'AUD': 1.53, 'CAD': 1.36, 'SGD': 1.34, 'THB': 35, 'MYR': 4.7,
         }
         rate = CURRENCY_RATES.get(currency, 1)
 
-        breakdown = {k: round(v * rate) for k, v in breakdown_usd.items()}
-        total = round(total_usd * rate)
+        allocation = []
+        total = 0
+        for cat, base in daily.items():
+            cost = base * days * multiplier * pace_mult
+            if cat in ('Food & Dining', 'Activities & Sightseeing', 'Shopping & Misc'):
+                cost *= group_size
+            cost = round(cost * rate)
+            total += cost
+            allocation.append({
+                'category': cat,
+                'amount': cost,
+                'percentage': 0,
+                'reason': f'Based on {preference} {cat.lower()} for {days} days in {city}',
+            })
 
-        tips = [
-            f"Book accommodation in advance for better rates in {city}",
-            "Eat where locals eat — street food and local restaurants are cheaper and often better",
-            "Consider a city transit pass if available to save on daily transport",
+        for a in allocation:
+            a['percentage'] = round(a['amount'] / total * 100) if total else 0
+
+        hidden_costs = [
+            f'Tourist taxes or city entry fees in {city}',
+            'SIM card / internet roaming charges',
+            'Tipping customs and service charges',
+            'Travel insurance (recommended)',
         ]
+
+        optimization_tips = [
+            f'Book accommodation in advance for better rates in {city}',
+            'Eat where locals eat — street food and local restaurants are cheaper and often better',
+            'Consider a city transit pass if available to save on daily transport',
+        ]
+
+        overspending_risk = (
+            'Impulse shopping and unplanned premium dining are the biggest risks for this trip.'
+            if preference != 'low cost'
+            else 'Activity entrance fees can add up quickly — check free alternatives.'
+        )
 
         return {
             'budget': total,
-            'breakdown': breakdown,
-            'tips': tips,
+            'goal': f'{preference.title()} {days}-day trip to {city}, {country}',
+            'assumptions': [
+                f'Prices based on {preference} tier for {country or "this region"}',
+                f'Group of {group_size} sharing accommodation costs',
+            ],
+            'allocation': allocation,
+            'hidden_costs': hidden_costs,
+            'optimization_tips': optimization_tips,
+            'overspending_risk': overspending_risk,
             'confidence': 'medium',
             'currency': currency,
             'duration_days': days,
+            'preference': preference,
             'ai_generated': False,
         }

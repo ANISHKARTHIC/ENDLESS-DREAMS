@@ -527,19 +527,33 @@ class ApiClient {
     group_size?: number;
     currency?: string;
   }) {
-    return this.request<{
-      budget: number;
-      breakdown: Record<string, number>;
-      tips: string[];
-      confidence: 'low' | 'medium' | 'high';
-      currency: string;
-      duration_days: number;
-      ai_generated: boolean;
-    }>('/trips/estimate-budget/', {
+    return this.request<BudgetEstimateResponse>('/trips/estimate-budget/', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
+}
+
+export interface BudgetAllocationItem {
+  category: string;
+  amount: number;
+  percentage: number;
+  reason: string;
+}
+
+export interface BudgetEstimateResponse {
+  budget: number;
+  goal: string;
+  assumptions: string[];
+  allocation: BudgetAllocationItem[];
+  hidden_costs: string[];
+  optimization_tips: string[];
+  overspending_risk: string;
+  confidence: 'low' | 'medium' | 'high';
+  currency: string;
+  duration_days: number;
+  preference: string;
+  ai_generated: boolean;
 }
 
 export const api = new ApiClient();

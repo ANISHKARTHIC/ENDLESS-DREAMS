@@ -31,7 +31,7 @@ import { DestinationPreviewMap } from "@/components/map/destination-preview-map"
 import { CitySearch } from "@/components/search/city-search";
 import { getCityData, type WorldCity } from "@/data/world-cities";
 import { useCurrency } from "@/contexts/currency-context";
-import { api } from "@/lib/api";
+import { api, type BudgetEstimateResponse, type BudgetAllocationItem } from "@/lib/api";
 import { type RouteInfo, reverseGeocode } from "@/lib/mapbox";
 import type { TripGenerateRequest, TravelOption, TravelSearchResponse } from "@/types";
 
@@ -100,10 +100,8 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
 
   // AI Budget estimation state
   const [isEstimatingBudget, setIsEstimatingBudget] = useState(false);
-  const [budgetBreakdown, setBudgetBreakdown] = useState<Record<string, number> | null>(null);
-  const [budgetTips, setBudgetTips] = useState<string[]>([]);
-  const [budgetConfidence, setBudgetConfidence] = useState<string | null>(null);
-  const [budgetAiGenerated, setBudgetAiGenerated] = useState(false);
+  const [budgetResult, setBudgetResult] = useState<BudgetEstimateResponse | null>(null);
+  const [showBudgetDetails, setShowBudgetDetails] = useState(false);
 
   const handleRouteLoad = useCallback((info: RouteInfo) => {
     setRouteInfo(info);
@@ -202,10 +200,8 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
   const handleEstimateBudget = useCallback(async () => {
     if (!form.destination_city) return;
     setIsEstimatingBudget(true);
-    setBudgetBreakdown(null);
-    setBudgetTips([]);
-    setBudgetConfidence(null);
-    setBudgetAiGenerated(false);
+    setBudgetResult(null);
+    setShowBudgetDetails(false);
     try {
       const result = await api.estimateBudget({
         destination_city: form.destination_city,
@@ -219,10 +215,8 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
         currency,
       });
       updateForm({ budget_usd: result.budget });
-      setBudgetBreakdown(result.breakdown);
-      setBudgetTips(result.tips || []);
-      setBudgetConfidence(result.confidence);
-      setBudgetAiGenerated(result.ai_generated);
+      setBudgetResult(result);
+      setShowBudgetDetails(true);
     } catch (err) {
       console.warn('AI budget estimation failed:', err);
     } finally {
@@ -518,8 +512,8 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
                 value={form.budget_usd}
                 onChange={(e) => {
                   updateForm({ budget_usd: parseInt(e.target.value) || 0 });
-                  setBudgetBreakdown(null);
-                  setBudgetAiGenerated(false);
+                  setBudgetResult(null);
+                  setShowBudgetDetails(false);
                 }}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background/50 backdrop-blur-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 min={100}
@@ -533,8 +527,8 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
                   type="button"
                   onClick={() => {
                     updateForm({ budget_usd: amount });
-                    setBudgetBreakdown(null);
-                    setBudgetAiGenerated(false);
+                    setBudgetResult(null);
+                    setShowBudgetDetails(false);
                   }}
                   className={`flex-1 py-1.5 text-xs rounded-lg border transition-all ${
                     form.budget_usd === amount
@@ -547,56 +541,135 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
               ))}
             </div>
 
-            {/* AI Budget Breakdown Panel */}
-            {budgetBreakdown && (
+            {/* AI Budget Intelligence Panel */}
+            <AnimatePresence>
+            {budgetResult && showBudgetDetails && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                className="rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-500/5 to-purple-500/5 p-4 space-y-3"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/5 via-purple-500/5 to-fuchsia-500/5 overflow-hidden"
               >
-                <div className="flex items-center justify-between">
+                {/* Header */}
+                <div className="px-4 py-3 flex items-center justify-between border-b border-violet-500/10">
                   <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-violet-500" />
-                    <span className="text-sm font-semibold text-foreground">Budget Breakdown</span>
-                  </div>
-                  {budgetConfidence && (
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                      budgetConfidence === 'high'
-                        ? 'bg-emerald-500/10 text-emerald-600'
-                        : budgetConfidence === 'medium'
-                        ? 'bg-amber-500/10 text-amber-600'
-                        : 'bg-red-500/10 text-red-600'
-                    }`}>
-                      {budgetConfidence} confidence
-                    </span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  {Object.entries(budgetBreakdown).map(([category, amount]) => (
-                    <div key={category} className="flex items-center justify-between px-3 py-2 rounded-lg bg-background/60 border border-border/50">
-                      <span className="text-xs text-muted-foreground capitalize">{category}</span>
-                      <span className="text-xs font-semibold text-foreground">{symbol}{amount.toLocaleString()}</span>
+                    <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                      <BrainCircuit className="h-4 w-4 text-white" />
                     </div>
-                  ))}
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">AI Budget Planner</p>
+                      <p className="text-[10px] text-muted-foreground">{budgetResult.goal}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {budgetResult.preference && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-violet-500/10 text-violet-600 dark:text-violet-400 capitalize">
+                        {budgetResult.preference}
+                      </span>
+                    )}
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                      budgetResult.confidence === 'high'
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : budgetResult.confidence === 'medium'
+                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                        : 'bg-red-500/10 text-red-600 dark:text-red-400'
+                    }`}>
+                      {budgetResult.confidence} confidence
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowBudgetDetails(false)}
+                      className="text-muted-foreground hover:text-foreground text-xs ml-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
 
-                {budgetTips.length > 0 && (
-                  <div className="space-y-1.5 pt-1">
-                    {budgetTips.map((tip, i) => (
-                      <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
-                        <Lightbulb className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-                        <span>{tip}</span>
+                <div className="p-4 space-y-4">
+                  {/* Allocation Bars */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                      <TrendingUp className="h-3.5 w-3.5" />
+                      Budget Allocation
+                    </p>
+                    {budgetResult.allocation.map((item: BudgetAllocationItem) => (
+                      <div key={item.category} className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-foreground font-medium">{item.category}</span>
+                          <span className="text-xs font-semibold text-foreground">
+                            {symbol}{item.amount.toLocaleString()}
+                            <span className="text-muted-foreground font-normal ml-1">({item.percentage}%)</span>
+                          </span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.min(item.percentage, 100)}%` }}
+                            transition={{ duration: 0.6, ease: "easeOut" }}
+                            className="h-full rounded-full bg-gradient-to-r from-violet-500 to-purple-500"
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground/70">{item.reason}</p>
                       </div>
                     ))}
                   </div>
-                )}
 
-                {budgetAiGenerated && (
-                  <p className="text-[10px] text-muted-foreground/60 text-right">Powered by AI · adjust as needed</p>
-                )}
+                  {/* Hidden Costs Warning */}
+                  {budgetResult.hidden_costs.length > 0 && (
+                    <div className="rounded-xl bg-amber-500/5 border border-amber-500/15 p-3 space-y-1.5">
+                      <p className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                        <DollarSign className="h-3.5 w-3.5" />
+                        Hidden Costs to Watch
+                      </p>
+                      {budgetResult.hidden_costs.map((cost: string, i: number) => (
+                        <p key={i} className="text-[11px] text-muted-foreground pl-5">• {cost}</p>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Overspending Risk */}
+                  {budgetResult.overspending_risk && (
+                    <div className="rounded-xl bg-red-500/5 border border-red-500/15 p-3">
+                      <p className="text-xs font-medium text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                        <Navigation className="h-3.5 w-3.5" />
+                        Overspending Risk
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-1 pl-5">{budgetResult.overspending_risk}</p>
+                    </div>
+                  )}
+
+                  {/* Optimization Tips */}
+                  {budgetResult.optimization_tips.length > 0 && (
+                    <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/15 p-3 space-y-1.5">
+                      <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                        <Lightbulb className="h-3.5 w-3.5" />
+                        Money-Saving Tips
+                      </p>
+                      {budgetResult.optimization_tips.map((tip: string, i: number) => (
+                        <p key={i} className="text-[11px] text-muted-foreground pl-5">• {tip}</p>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Assumptions */}
+                  {budgetResult.assumptions.length > 0 && (
+                    <div className="pt-1 space-y-1">
+                      <p className="text-[10px] text-muted-foreground/60 font-medium">Assumptions</p>
+                      {budgetResult.assumptions.map((a: string, i: number) => (
+                        <p key={i} className="text-[10px] text-muted-foreground/50 pl-2">• {a}</p>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Footer */}
+                  <p className="text-[10px] text-muted-foreground/40 text-right">
+                    {budgetResult.ai_generated ? 'Powered by AI' : 'Heuristic estimate'} · {budgetResult.duration_days} days · adjust as needed
+                  </p>
+                </div>
               </motion.div>
             )}
+            </AnimatePresence>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
