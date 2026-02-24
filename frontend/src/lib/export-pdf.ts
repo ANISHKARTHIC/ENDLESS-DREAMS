@@ -1,0 +1,326 @@
+/* Client-side PDF export for trip itineraries using jsPDF */
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import type { Trip, Itinerary, ItineraryItem } from "@/types";
+
+const PALETTE: [number, number, number][] = [
+  [59, 130, 246],   // blue
+  [139, 92, 246],   // violet
+  [245, 158, 11],   // amber
+  [16, 185, 129],   // emerald
+  [239, 68, 68],    // red
+  [132, 204, 22],   // lime
+  [249, 115, 22],   // orange
+  [99, 102, 241],   // indigo
+];
+
+function hex(rgb: number[]): string {
+  return `#${rgb.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function formatTime(t: string): string {
+  const [h, m] = t.split(":");
+  const hour = parseInt(h);
+  return `${hour % 12 || 12}:${m} ${hour >= 12 ? "PM" : "AM"}`;
+}
+
+function formatDate(d: string): string {
+  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+export async function exportTripPDF(
+  trip: Trip,
+  itinerary: Itinerary,
+  currencySymbol = "₹",
+  convertFromUsd: (v: number) => number = (v) => v
+) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const MARGIN = 14;
+  let y = 0;
+
+  // ── COVER PAGE ──────────────────────────────────────────────────────────────
+  // Deep gradient background
+  doc.setFillColor(30, 20, 60);
+  doc.rect(0, 0, W, H, "F");
+
+  // Decorative circles
+  doc.setFillColor(99, 102, 241, 0.18);
+  doc.circle(W - 30, 30, 55, "F");
+  doc.setFillColor(139, 92, 246, 0.12);
+  doc.circle(20, H - 30, 65, "F");
+
+  // Badge
+  doc.setFillColor(99, 102, 241);
+  doc.roundedRect(MARGIN, 20, 42, 8, 2, 2, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("ENDLESS DREAMS  +  TRAVEL ITINERARY", MARGIN + 2, 25.5);
+
+  // Destination
+  doc.setFontSize(34);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  const city = trip.destination_city.toUpperCase();
+  doc.text(city, MARGIN, 55);
+
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(180, 170, 220);
+  doc.text(trip.destination_country, MARGIN, 64);
+
+  // Divider
+  doc.setDrawColor(99, 102, 241);
+  doc.setLineWidth(0.8);
+  doc.line(MARGIN, 70, W - MARGIN, 70);
+
+  // Trip meta grid
+  const meta = [
+    ["Dates",    `${formatDate(trip.start_date)} to ${formatDate(trip.end_date)}`],
+    ["Duration", `${trip.duration_days} day${trip.duration_days > 1 ? "s" : ""}`],
+    ["Group",    `${trip.group_size} ${trip.group_size === 1 ? "person" : "people"}`],
+    ["Budget",   `${currencySymbol}${Math.round(convertFromUsd(Number(trip.budget_usd))).toLocaleString()}`],
+    ["Pace",     trip.pace.charAt(0).toUpperCase() + trip.pace.slice(1)],
+    ["Stay",     trip.stay_type.charAt(0).toUpperCase() + trip.stay_type.slice(1)],
+  ];
+
+  const colW = (W - MARGIN * 2) / 2;
+  const metaAccents: [number, number, number][] = [
+    [99, 102, 241], [139, 92, 246],
+    [236, 72, 153], [245, 158, 11],
+    [16, 185, 129], [6, 182, 212],
+  ];
+  meta.forEach(([label, val], i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const mx = MARGIN + col * colW;
+    const my = 80 + row * 18;
+    const ac = metaAccents[i];
+
+    // Colored accent bar
+    doc.setFillColor(ac[0], ac[1], ac[2]);
+    doc.roundedRect(mx, my - 3.5, 2.5, 2.5, 0.5, 0.5, "F");
+
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(140, 130, 180);
+    doc.text(label.toUpperCase(), mx + 4, my - 1.5);
+
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(230, 220, 255);
+    doc.text(val, mx, my + 5.5);
+  });
+
+  // Summary stats bar
+  const items: ItineraryItem[] = itinerary.items || [];
+  const totalCost = items.reduce((s, it) => s + Number(it.estimated_cost_usd), 0);
+  const stats = [
+    { label: "Activities", value: String(items.length) },
+    { label: "Est. Spend",  value: `${currencySymbol}${Math.round(convertFromUsd(totalCost)).toLocaleString()}` },
+    { label: "Days",        value: String(trip.duration_days) },
+  ];
+  const barY = 126;
+  const barH = 22;
+  const barW = (W - MARGIN * 2) / stats.length;
+  stats.forEach((s, i) => {
+    const bx = MARGIN + i * barW;
+    doc.setFillColor(255, 255, 255, 0.06);
+    doc.roundedRect(bx, barY, barW - 2, barH, 3, 3, "F");
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(180, 160, 255);
+    doc.text(s.value, bx + barW / 2 - 2, barY + 10, { align: "center" });
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(120, 110, 160);
+    doc.text(s.label, bx + barW / 2 - 2, barY + 17, { align: "center" });
+  });
+
+  // Footer watermark
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(80, 70, 120);
+  doc.text("Generated by Endless Dreams  |  endlessdreams.app", W / 2, H - 10, { align: "center" });
+
+  // ── DAY PAGES ────────────────────────────────────────────────────────────────
+  const dayGroups: Record<number, ItineraryItem[]> = {};
+  items.forEach((it) => {
+    (dayGroups[it.day_number] ??= []).push(it);
+  });
+  const days = Object.keys(dayGroups).map(Number).sort((a, b) => a - b);
+
+  days.forEach((dayNum, dayIdx) => {
+    doc.addPage();
+    const pal = PALETTE[dayIdx % PALETTE.length];
+    const dayItems = dayGroups[dayNum].sort((a, b) => a.order - b.order);
+
+    // Day header band
+    doc.setFillColor(pal[0], pal[1], pal[2]);
+    doc.rect(0, 0, W, 28, "F");
+
+    doc.setFillColor(255, 255, 255, 0.08);
+    doc.circle(W - 10, 14, 30, "F");
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${trip.destination_city.toUpperCase()}  •  ITINERARY`, MARGIN, 9);
+
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Day ${dayNum}`, MARGIN, 21);
+
+    // Day date
+    const dayDate = (() => {
+      const d = new Date(trip.start_date);
+      d.setDate(d.getDate() + dayNum - 1);
+      return formatDate(d.toISOString().slice(0, 10));
+    })();
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(255, 255, 255, 0.75);
+    doc.text(dayDate, W - MARGIN, 21, { align: "right" });
+
+    // Activity count + day cost
+    const dayCost = dayItems.reduce((s, it) => s + Number(it.estimated_cost_usd), 0);
+    doc.setFontSize(7.5);
+    doc.setTextColor(255, 255, 255, 0.65);
+    doc.text(
+      `${dayItems.length} activities  |  Est. ${currencySymbol}${Math.round(convertFromUsd(dayCost)).toLocaleString()}`,
+      W - MARGIN, 9, { align: "right" }
+    );
+
+    // Table
+    const tableRows = dayItems.map((it) => {
+      const dh = Math.floor(it.duration_minutes / 60);
+      const dm = it.duration_minutes % 60;
+      const dur = dh > 0 ? `${dh}h${dm > 0 ? ` ${dm}m` : ""}` : `${dm}m`;
+      const cost = Number(it.estimated_cost_usd) > 0
+        ? `${currencySymbol}${Math.round(convertFromUsd(Number(it.estimated_cost_usd))).toLocaleString()}`
+        : "Free";
+      const rating = Number(it.place.rating) > 0 ? `${Number(it.place.rating).toFixed(1)} / 5` : "-";
+      return [
+        `${formatTime(it.start_time)}\n${formatTime(it.end_time)}`,
+        `${it.place.name}\n${it.place.description ? it.place.description.slice(0, 80) + (it.place.description.length > 80 ? "..." : "") : ""}`,
+        it.place.category.charAt(0).toUpperCase() + it.place.category.slice(1),
+        dur,
+        rating,
+        cost,
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 33,
+      head: [["Time", "Place", "Category", "Duration", "Rating", "Cost"]],
+      body: tableRows,
+      margin: { left: MARGIN, right: MARGIN },
+      styles: {
+        fontSize: 8,
+        cellPadding: { top: 4, bottom: 4, left: 3, right: 3 },
+        overflow: "linebreak",
+        lineColor: [230, 225, 245],
+        lineWidth: 0.2,
+      },
+      headStyles: {
+        fillColor: pal,
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+        fontSize: 8,
+        halign: "center",
+      },
+      columnStyles: {
+        0: { cellWidth: 22, halign: "center", textColor: [80, 80, 100] as [number,number,number] },
+        1: { cellWidth: "auto" },
+        2: { cellWidth: 26, halign: "center" },
+        3: { cellWidth: 20, halign: "center" },
+        4: { cellWidth: 20, halign: "center", textColor: [180, 120, 0] as [number,number,number] },
+        5: { cellWidth: 24, halign: "right", fontStyle: "bold", textColor: [pal[0], pal[1], pal[2]] as [number,number,number] },
+      },
+      alternateRowStyles: { fillColor: [248, 247, 255] },
+      didDrawPage(data) {
+        // Footer on each page
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "italic");
+        doc.setTextColor(160, 155, 180);
+        const pageStr = `Page ${doc.getNumberOfPages()}`;
+        doc.text(pageStr, W - MARGIN, H - 6, { align: "right" });
+    doc.text("Endless Dreams  |  endlessdreams.app", MARGIN, H - 6);
+      },
+    });
+  });
+
+  // ── SUMMARY PAGE ─────────────────────────────────────────────────────────────
+  doc.addPage();
+
+  // Header bar
+  doc.setFillColor(30, 20, 60);
+  doc.rect(0, 0, W, 28, "F");
+  doc.setTextColor(180, 160, 255);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
+  doc.text("TRIP SUMMARY", MARGIN, 9);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text(`${trip.destination_city} at a Glance`, MARGIN, 21);
+
+  // Category breakdown table
+  const catMap: Record<string, { count: number; cost: number }> = {};
+  items.forEach((it) => {
+    const cat = it.place.category || "other";
+    catMap[cat] ??= { count: 0, cost: 0 };
+    catMap[cat].count++;
+    catMap[cat].cost += Number(it.estimated_cost_usd);
+  });
+
+  const catRows = Object.entries(catMap)
+    .sort((a, b) => b[1].count - a[1].count)
+    .map(([cat, v]) => [
+      cat.charAt(0).toUpperCase() + cat.slice(1),
+      String(v.count),
+      `${currencySymbol}${Math.round(convertFromUsd(v.cost)).toLocaleString()}`,
+      `${Math.round((v.count / items.length) * 100)}%`,
+    ]);
+
+  autoTable(doc, {
+    startY: 34,
+    head: [["Category", "Activities", "Est. Cost", "% of Trip"]],
+    body: catRows,
+    margin: { left: MARGIN, right: MARGIN },
+    styles: { fontSize: 9, cellPadding: 4 },
+    headStyles: { fillColor: [30, 20, 60], textColor: [200, 180, 255], fontStyle: "bold" },
+    columnStyles: {
+      0: { fontStyle: "bold" },
+      1: { halign: "center" },
+      2: { halign: "right", fontStyle: "bold" },
+      3: { halign: "center", textColor: [99, 102, 241] },
+    },
+    alternateRowStyles: { fillColor: [248, 247, 255] },
+  });
+
+  // Total row
+  const finalY: number = (doc as any).lastAutoTable.finalY + 6;
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(30, 20, 60);
+  doc.text(
+    `Total estimated spend: ${currencySymbol}${Math.round(convertFromUsd(totalCost)).toLocaleString()}`,
+    MARGIN, finalY
+  );
+
+  // Footer
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(140, 130, 170);
+  doc.text(
+    `Generated on ${new Date().toLocaleDateString("en-US", { dateStyle: "long" })}  |  Endless Dreams`,
+    W / 2, H - 10, { align: "center" }
+  );
+
+  // ── SAVE ──────────────────────────────────────────────────────────────────────
+  const filename = `${trip.destination_city.replace(/\s+/g, "_")}_${trip.start_date}_itinerary.pdf`;
+  doc.save(filename);
+}

@@ -6,8 +6,8 @@ Supports:
   /trips          — List user's trips
   /trip <id>      — View trip details + today's itinerary
   /weather <city> — Quick weather lookup
-  /alter <msg>    — Alter current trip's plan via AI customizer
-  /status         — Show today's itinerary progress
+  /alter <msg>    — Alter current trip's plan via AI customizer  /recommend      — Show recommended places for active trip destination
+  /add <name|num> — Add a recommended place to the itinerary  /status         — Show today's itinerary progress
   /help           — Command reference
 """
 import logging
@@ -106,6 +106,11 @@ def handle_update(update: Dict[str, Any]) -> None:
     elif text.startswith('/alter'):
         message_text = text.replace('/alter', '').strip()
         response = _handle_alter(tg_user, message_text)
+    elif text.startswith('/recommend'):
+        response = _handle_recommend(tg_user)
+    elif text.startswith('/add'):
+        add_text = text.replace('/add', '').strip()
+        response = _handle_add(tg_user, add_text)
     elif text.startswith('/status'):
         response = _handle_status(tg_user)
     elif text.startswith('/help'):
@@ -433,10 +438,153 @@ def _handle_help() -> str:
         "🗺️ /trip <code>id</code> — View trip & today's plan\n"
         "🌤️ /weather <code>city</code> — Weather check\n"
         "✏️ /alter <code>message</code> — AI-modify your plan\n"
-        "📊 /status — Today's progress\n"
+        "📍 /recommend — Show recommended places for your trip\n"
+        "➕ /add <code>name or number</code> — Add a recommended place\n"
+        "📊 /status — Today\'s progress\n"
         "❓ /help — This help message\n\n"
         "💡 <b>Tips:</b>\n"
         "• Link a trip with /trip to enable quick commands\n"
-        "• Send any message to alter your active trip's plan\n"
+        "• Use /recommend to discover places, then /add 1 to add them\n"
+        "• Send any message to alter your active trip\'s plan\n"
         "• Works best during your trip for real-time changes"
+    )
+
+
+def _handle_recommend(tg_user) -> str:
+    """Show top recommended places for the active trip destination."""
+    if not tg_user.linked_trip_id:
+        return "❌ No active trip linked. Use /trip <code>id</code> to link one."
+
+    from trips.models import Trip
+    from places.models import Place
+    try:
+        trip = Trip.objects.get(id=tg_user.linked_trip_id)
+    except Trip.DoesNotExist:
+        return "❌ Linked trip not found."
+
+    # Get current itinerary place IDs to mark what's already added
+    itinerary = trip.itineraries.filter(is_active=True).first()
+    existing_ids = set()
+    if itinerary:
+        from itineraries.models import ItineraryItem
+        existing_ids = set(
+            ItineraryItem.objects.filter(itinerary=itinerary)
+            .values_list('place_id', flat=True)
+        )
+
+    places = (
+        Place.objects.filter(city__iexact=trip.destination_city)
+        .exclude(id__in=existing_ids)
+        .order_by('-popularity_score', '-rating')[:10]
+    )
+
+    if not places:
+        return f"💭 No additional places found for {trip.destination_city}."
+
+    cat_emoji = {
+        'culture': '🏛️', 'nature': '🌿', 'food': '🍽️',
+        'adventure': '🧗', 'relaxation': '🏄', 'shopping': '🛍️',
+        'nightlife': '🎉', 'landmark': '🏆', 'default': '📍',
+    }
+
+    lines = [f"📍 <b>Recommended Places in {trip.destination_city}:</b>\n"]
+    for idx, place in enumerate(places, 1):
+        emoji = cat_emoji.get(place.category, cat_emoji['default'])
+        rating = f"  ★{float(place.rating):.1f}" if place.rating else ''
+        cost = f"  ₹{float(place.avg_cost_usd):,.0f}" if place.avg_cost_usd else ''
+        lines.append(
+            f"{idx}. {emoji} <b>{place.name}</b>{rating}{cost}\n"
+            f"   <i>{place.description[:80] + '...' if place.description and len(place.description) > 80 else place.description or place.category}</i>\n"
+        )
+
+    lines.append("\nUse <code>/add 1</code> or <code>/add Place Name</code> to add a place.")
+    return "\n".join(lines)
+
+
+def _handle_add(tg_user, text: str) -> str:
+    """Add a place to the itinerary by number or name."""
+    if not tg_user.linked_trip_id:
+        return "❌ No active trip linked. Use /trip <code>id</code> first."
+    if not text:
+        return (
+            "➕ Usage: /add <code>1</code> or /add <code>Place Name</code>\n"
+            "First use /recommend to see available places."
+        )
+
+    from trips.models import Trip
+    from places.models import Place
+    from itineraries.models import Itinerary, ItineraryItem
+
+    try:
+        trip = Trip.objects.get(id=tg_user.linked_trip_id)
+    except Trip.DoesNotExist:
+        return "❌ Linked trip not found."
+
+    itinerary = trip.itineraries.filter(is_active=True).first()
+    if not itinerary:
+        return "❌ No active itinerary found."
+
+    existing_ids = set(
+        ItineraryItem.objects.filter(itinerary=itinerary)
+        .values_list('place_id', flat=True)
+    )
+    candidates = (
+        Place.objects.filter(city__iexact=trip.destination_city)
+        .exclude(id__in=existing_ids)
+        .order_by('-popularity_score', '-rating')
+    )
+
+    place_to_add = None
+
+    # Try numeric index first
+    if text.isdigit():
+        idx = int(text) - 1
+        all_candidates = list(candidates[:10])
+        if 0 <= idx < len(all_candidates):
+            place_to_add = all_candidates[idx]
+        else:
+            return f"❌ No place at number {text}. Use /recommend to see the list."
+    else:
+        # Search by name
+        from django.db.models import Q
+        place_to_add = (
+            Place.objects.filter(city__iexact=trip.destination_city)
+            .filter(Q(name__icontains=text))
+            .exclude(id__in=existing_ids)
+            .order_by('-popularity_score')
+            .first()
+        )
+        if not place_to_add:
+            # Try including already-added places (user might mean something else)
+            return f"❌ No place found matching '{text}' in {trip.destination_city}. Try /recommend to see options."
+
+    # Add to the last day of the itinerary
+    all_items = list(ItineraryItem.objects.filter(itinerary=itinerary))
+    max_day = max((i.day_number for i in all_items), default=1)
+    max_order = max((i.order for i in all_items if i.day_number == max_day), default=0)
+
+    ItineraryItem.objects.create(
+        itinerary=itinerary,
+        place=place_to_add,
+        day_number=max_day,
+        order=max_order + 1,
+        start_time='14:00',
+        end_time='16:00',
+        duration_minutes=place_to_add.avg_duration_minutes or 90,
+        estimated_cost_usd=place_to_add.avg_cost_usd or 0,
+        score=float(place_to_add.popularity_score or 0) * 10,
+    )
+
+    cat_emoji = {
+        'culture': '🏛️', 'nature': '🌿', 'food': '🍽️',
+        'adventure': '🧗', 'relaxation': '🏄', 'shopping': '🛍️',
+        'nightlife': '🎉', 'landmark': '🏆',
+    }.get(place_to_add.category, '📍')
+
+    return (
+        f"✅ <b>{place_to_add.name}</b> added to Day {max_day}!\n\n"
+        f"{cat_emoji} {place_to_add.category.capitalize()}\n"
+        f"⏱️ {place_to_add.avg_duration_minutes or 90} min\n"
+        f"📍 {trip.destination_city}\n\n"
+        f"Use /status to see your updated Day {max_day} plan."
     )

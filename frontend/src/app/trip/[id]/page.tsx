@@ -42,6 +42,7 @@ import { TripExpenses } from "@/components/trip/trip-expenses";
 import { TripPhotos } from "@/components/trip/trip-photos";
 import { ShareDialog } from "@/components/trip/share-dialog";
 import { useCurrency } from "@/contexts/currency-context";
+import { exportTripPDF } from "@/lib/export-pdf";
 import {
   Calendar,
   MapPin,
@@ -66,6 +67,8 @@ import {
   Share2,
   FileDown,
   Eye,
+  Bookmark,
+  BookmarkCheck,
 } from "lucide-react";
 
 export default function TripDetailPage() {
@@ -88,7 +91,38 @@ export default function TripDetailPage() {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [activeUsers, setActiveUsers] = useState<{ username: string; id: string }[]>([]);
   const [heroImage, setHeroImage] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [activeItineraryItemId, setActiveItineraryItemId] = useState<string | null>(null);
   const { convertFromUsd, symbol } = useCurrency();
+
+  // Saved itinerary state (localStorage)
+  const [isSaved, setIsSaved] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+
+  useEffect(() => {
+    if (!tripId) return;
+    const saved: { id: string }[] = JSON.parse(localStorage.getItem("savedItineraries") || "[]");
+    setIsSaved(saved.some((s) => s.id === tripId));
+  }, [tripId]);
+
+  const handleSaveItinerary = () => {
+    if (!trip) return;
+    const saved: Record<string, unknown>[] = JSON.parse(localStorage.getItem("savedItineraries") || "[]");
+    if (saved.some((s) => (s as any).id === tripId)) return;
+    saved.unshift({
+      id: tripId,
+      destination_city: trip.destination_city,
+      destination_country: trip.destination_country,
+      start_date: trip.start_date,
+      end_date: trip.end_date,
+      duration_days: trip.duration_days,
+      savedAt: new Date().toISOString(),
+    });
+    localStorage.setItem("savedItineraries", JSON.stringify(saved));
+    setIsSaved(true);
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 2000);
+  };
 
   // Determine if trip is happening today
   const today = new Date().toISOString().slice(0, 10);
@@ -338,13 +372,26 @@ export default function TripDetailPage() {
                 <Button
                   variant="outline"
                   className="border-accent/30 hover:border-accent/50 hover:bg-accent/5 text-accent"
-                  onClick={() => {
-                    const url = api.getTripPDFUrl(tripId);
-                    window.open(url, "_blank");
+                  disabled={exporting || !itinerary}
+                  onClick={async () => {
+                    if (!trip || !itinerary) return;
+                    setExporting(true);
+                    try {
+                      await exportTripPDF(trip, itinerary, symbol, convertFromUsd);
+                    } finally {
+                      setExporting(false);
+                    }
                   }}
                 >
-                  <FileDown className="h-4 w-4 mr-1.5" />
-                  <span className="hidden sm:inline">Export</span>
+                  {exporting ? (
+                    <svg className="h-4 w-4 mr-1.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                  ) : (
+                    <FileDown className="h-4 w-4 mr-1.5" />
+                  )}
+                  <span className="hidden sm:inline">{exporting ? "Exporting…" : "Export PDF"}</span>
                 </Button>
                 {/* Customize Button */}
                 <Button
@@ -400,8 +447,8 @@ export default function TripDetailPage() {
           </motion.div>
 
           {/* Tab navigation */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-muted/50 overflow-x-auto scrollbar-hide">
+          <div className="flex items-center justify-between mb-6 gap-2">
+            <div className="flex items-center gap-0.5 p-1 rounded-xl bg-muted border border-border/40 overflow-x-auto scrollbar-hide">
               {(
                 [
                   { key: "itinerary", label: "Itinerary", icon: Activity },
@@ -417,34 +464,55 @@ export default function TripDetailPage() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                     activeTab === tab.key
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-background text-foreground shadow-sm border border-border/60"
+                      : "text-foreground/60 hover:text-foreground hover:bg-background/50"
                   }`}
                 >
-                  <tab.icon className="h-4 w-4" />
-                  <span className="hidden sm:inline">{tab.label}</span>
+                  <tab.icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="hidden md:inline">{tab.label}</span>
                   {tab.key === "events" && events.length > 0 && (
-                    <span className="ml-1 h-5 w-5 rounded-full bg-warning/20 text-warning text-xs flex items-center justify-center">
+                    <span className="ml-0.5 h-4 w-4 rounded-full bg-amber-500 text-white text-[9px] flex items-center justify-center font-bold">
                       {events.length}
                     </span>
                   )}
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => setIsShareOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 ml-2 rounded-xl text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition shrink-0"
-            >
-              <Share2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Share</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleSaveItinerary}
+                disabled={isSaved}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition ${
+                  isSaved
+                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-500 cursor-default"
+                    : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
+                }`}
+                title={isSaved ? "Itinerary saved to Profile" : "Save this itinerary"}
+              >
+                {isSaved ? (
+                  <BookmarkCheck className="h-4 w-4" />
+                ) : (
+                  <Bookmark className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">
+                  {justSaved ? "Saved!" : isSaved ? "Saved" : "Save"}
+                </span>
+              </button>
+              <button
+                onClick={() => setIsShareOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition"
+              >
+                <Share2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Share</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Main content */}
-            <div className="lg:col-span-2">
+            <div className={activeTab === "itinerary" ? "lg:col-span-3" : "lg:col-span-2"}>
               {activeTab === "itinerary" && (
                 <>
                   {/* Day filter */}
@@ -477,17 +545,35 @@ export default function TripDetailPage() {
                   )}
 
                   {allItems.length > 0 ? (
-                    <ItineraryTimeline
-                      items={allItems}
-                      dayGroups={
-                        selectedDay
-                          ? { [selectedDay]: dayGroups[selectedDay.toString()] || [] }
-                          : dayGroups
-                      }
-                      onToggleLock={handleToggleLock}
-                      onReorder={handleReorder}
-                      onStatusChange={handleStatusChange}
-                    />
+                    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_500px] lg:gap-5">
+                      {/* Timeline column */}
+                      <div>
+                        <ItineraryTimeline
+                          items={allItems}
+                          dayGroups={
+                            selectedDay
+                              ? { [selectedDay]: dayGroups[selectedDay.toString()] || [] }
+                              : dayGroups
+                          }
+                          onToggleLock={handleToggleLock}
+                          onReorder={handleReorder}
+                          onStatusChange={handleStatusChange}
+                          onActiveItemChange={(itemId) => setActiveItineraryItemId(itemId)}
+                        />
+                      </div>
+                      {/* Sticky map column — desktop only */}
+                      <div className="hidden lg:block">
+                        <div className="sticky top-20 h-[calc(100vh-5.5rem)]">
+                          <TripMap
+                            items={allItems}
+                            selectedDay={selectedDay}
+                            activeItemId={activeItineraryItemId ?? undefined}
+                            onDaySelect={setSelectedDay}
+                            className="h-full rounded-2xl"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   ) : (
                     <div className="glass-card p-12 text-center">
                       <Activity className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
@@ -507,15 +593,17 @@ export default function TripDetailPage() {
                   items={allItems}
                   selectedDay={selectedDay}
                   onDaySelect={setSelectedDay}
-                  className="min-h-[600px]"
+                  className="h-[600px]"
                 />
               )}
 
               {activeTab === "recommendations" && (
                 <DestinationRecommendations
                   city={trip.destination_city}
+                  tripId={tripId}
                   tripDays={trip.duration_days}
                   tripBudgetUsd={Number(trip.budget_usd)}
+                  onItineraryUpdate={(updated) => setItinerary(updated)}
                 />
               )}
 
@@ -540,7 +628,8 @@ export default function TripDetailPage() {
               )}
             </div>
 
-            {/* Sidebar */}
+            {/* Sidebar – hidden on itinerary tab (full-width 2-col layout) */}
+            {activeTab !== "itinerary" && (
             <div className="space-y-6">
               {/* Live Trip Day Banner */}
               {isTripDay && currentDayNumber && (
@@ -724,6 +813,7 @@ export default function TripDetailPage() {
                 </div>
               </motion.div>
             </div>
+            )}
           </div>
         </div>
       </main>

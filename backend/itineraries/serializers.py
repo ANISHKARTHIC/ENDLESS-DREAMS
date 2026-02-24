@@ -33,14 +33,17 @@ class ItinerarySerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'version', 'generated_at', 'generation_time_ms', 'total_score']
 
     def get_day_groups(self, obj):
-        """Group items by day for frontend consumption."""
-        items = obj.items.select_related('place').all()
-        days = {}
+        """Group items by day for frontend consumption.
+        Always returns all days 1..trip.duration_days so empty days render.
+        """
+        items = obj.items.select_related('place').order_by('day_number', 'order')
+        days: dict = {}
+        # Pre-populate all trip days so the frontend always sees every day
+        trip = obj.trip
+        for d in range(1, trip.duration_days + 1):
+            days[d] = []
         for item in items:
-            day = item.day_number
-            if day not in days:
-                days[day] = []
-            days[day].append(ItineraryItemSerializer(item).data)
+            days.setdefault(item.day_number, []).append(ItineraryItemSerializer(item).data)
         return days
 
 

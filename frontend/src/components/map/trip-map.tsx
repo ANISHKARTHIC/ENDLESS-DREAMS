@@ -55,6 +55,7 @@ interface RouteData {
 interface TripMapProps {
   items: ItineraryItem[];
   selectedDay?: number;
+  activeItemId?: string;
   onSelectItem?: (itemId: string) => void;
   onDaySelect?: (day: number | undefined) => void;
   className?: string;
@@ -134,6 +135,7 @@ const POPUP_CSS = `
 export function TripMap({
   items,
   selectedDay,
+  activeItemId,
   onSelectItem,
   onDaySelect,
   className,
@@ -146,6 +148,7 @@ export function TripMap({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [routesLoading, setRoutesLoading] = useState(false);
+  const [mapStyle, setMapStyle] = useState<'satellite' | 'street'>('satellite');
 
   // Inject popup CSS once
   useEffect(() => {
@@ -270,6 +273,22 @@ export function TripMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(visibleItems.map((i) => i.id))]);
 
+  /* ─ Fly to active item when itinerary scroll changes it ─ */
+
+  useEffect(() => {
+    if (!activeItemId || !mapLoaded || !mapRef.current) return;
+    const target = items.find((i) => i.id === activeItemId);
+    if (!target) return;
+    const { latitude, longitude } = target.place;
+    if (!latitude || !longitude) return;
+    mapRef.current.flyTo({
+      center: [longitude, latitude],
+      zoom: 14,
+      duration: 1200,
+      essential: true,
+    });
+  }, [activeItemId, mapLoaded, items]);
+
   /* ─ Fit bounds ─ */
 
   useEffect(() => {
@@ -361,13 +380,31 @@ export function TripMap({
       <MapGL
         ref={mapRef}
         initialViewState={{ ...center, zoom: 12 }}
-        style={{ width: "100%", height: 600 }}
-        mapStyle="mapbox://styles/mapbox/dark-v11"
+        style={{ width: "100%", height: "100%", minHeight: 400 }}
+        mapStyle={
+          mapStyle === 'satellite'
+            ? "mapbox://styles/mapbox/satellite-streets-v12"
+            : "mapbox://styles/mapbox/dark-v11"
+        }
         mapboxAccessToken={MAPBOX_TOKEN}
         onLoad={() => setMapLoaded(true)}
         onClick={() => setSelectedPlace(null)}
       >
         <NavigationControl position="top-right" />
+
+        {/* ── Style Toggle ── */}
+        <div className="absolute top-2 left-2 z-10">
+          <button
+            onClick={() => setMapStyle(s => s === 'satellite' ? 'street' : 'satellite')}
+            className="flex items-center gap-1.5 bg-black/70 hover:bg-black/90 text-white text-[11px] font-medium px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/10 shadow-lg transition-all"
+          >
+            {mapStyle === 'satellite' ? (
+              <><MapPin className="h-3 w-3" /> Street View</>
+            ) : (
+              <><Navigation className="h-3 w-3" /> Satellite</>
+            )}
+          </button>
+        </div>
 
         {/* ── Road routes ── */}
         {routes.length > 0 && (
@@ -452,6 +489,7 @@ export function TripMap({
             DAY_COLORS[(item.day_number - 1) % DAY_COLORS.length];
           const isSelected = selectedPlace?.id === item.id;
           const isHovered = hoveredId === item.id;
+          const isActive = activeItemId === item.id;
 
           return (
             <Marker
@@ -470,10 +508,10 @@ export function TripMap({
                 onMouseLeave={() => setHoveredId(null)}
                 className="relative cursor-pointer"
               >
-                {/* Pulse ring */}
-                {isSelected && (
+                {/* Active/scroll pulse ring */}
+                {(isSelected || isActive) && (
                   <div
-                    className="absolute -inset-2 rounded-full animate-ping opacity-20"
+                    className="absolute -inset-2 rounded-full animate-ping opacity-30"
                     style={{ backgroundColor: dayColor }}
                   />
                 )}
@@ -484,10 +522,15 @@ export function TripMap({
                     className={cn(
                       "h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold",
                       "shadow-lg border-[2.5px] border-white transition-all duration-200",
-                      (isSelected || isHovered) &&
+                      (isSelected || isHovered || isActive) &&
                         "scale-125 shadow-xl"
                     )}
-                    style={{ backgroundColor: dayColor }}
+                    style={{
+                      backgroundColor: dayColor,
+                      boxShadow: isActive
+                        ? `0 0 0 3px ${dayColor}55, 0 4px 20px ${dayColor}66`
+                        : undefined,
+                    }}
                   >
                     <span className="text-white drop-shadow">
                       {idx}
