@@ -18,31 +18,50 @@ logger = logging.getLogger('ai_engine')
 
 
 class LLMLayer:
-    """LLM integration — Ollama (local) → Anthropic Claude → Groq → OpenAI → keyword fallback."""
+    """LLM integration priority:
+    1. Groq (llama-3.3-70b-versatile) — fast, free tier, excellent quality
+    2. Gemini (gemini-1.5-flash)       — Google, very capable
+    3. Anthropic Claude                — premium quality
+    4. Ollama (local)                  — free, requires local Docker
+    5. OpenAI GPT-4o-mini              — fallback
+    6. Keyword heuristics              — offline fallback
+    """
 
     def __init__(self):
-        self.api_key = getattr(settings, 'ANTHROPIC_API_KEY', '') or getattr(settings, 'OPENAI_API_KEY', '')
-        self.groq_key = getattr(settings, 'GROQ_API_KEY', '')
+        self.api_key = getattr(settings, 'ANTHROPIC_API_KEY', '') or ''
+        self.openai_key = getattr(settings, 'OPENAI_API_KEY', '') or ''
+        self.groq_key = getattr(settings, 'GROQ_API_KEY', '') or ''
+        self.gemini_key = getattr(settings, 'GEMINI_API_KEY', '') or ''
         self.client = None
         self._provider = 'fallback'
 
-        # Priority 1: Ollama (local, free)
-        ollama_base = getattr(settings, 'OLLAMA_BASE_URL', 'http://localhost:11434')
-        ollama_model = getattr(settings, 'OLLAMA_MODEL', 'llama3.2')
-        if ollama_base:
+        # Priority 1: Groq — fastest free LLM inference
+        if self.groq_key:
             try:
-                import requests as _req
-                _req.get(f'{ollama_base}/api/tags', timeout=2)
-                # Ollama is running — use OpenAI-compatible endpoint
                 import openai
-                self.client = openai.OpenAI(base_url=f'{ollama_base}/v1', api_key='ollama')
-                self._provider = 'ollama'
-                self._ollama_model = ollama_model
-                logger.info(f'LLM: Using Ollama ({ollama_model}) at {ollama_base}')
-            except Exception:
-                logger.info('Ollama not reachable — trying cloud providers')
+                self.client = openai.OpenAI(
+                    base_url='https://api.groq.com/openai/v1',
+                    api_key=self.groq_key,
+                )
+                self._provider = 'groq'
+                logger.info('LLM: Using Groq (llama-3.3-70b-versatile)')
+            except ImportError:
+                logger.warning("openai package not installed for Groq")
 
-        # Priority 2: Anthropic Claude
+        # Priority 2: Gemini
+        if self._provider == 'fallback' and self.gemini_key:
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=self.gemini_key)
+                self.client = genai.GenerativeModel('gemini-1.5-flash')
+                self._provider = 'gemini'
+                logger.info('LLM: Using Gemini 1.5 Flash')
+            except ImportError:
+                logger.warning("google-generativeai not installed — run: pip install google-generativeai")
+            except Exception as e:
+                logger.warning(f'Gemini init failed: {e}')
+
+        # Priority 3: Anthropic Claude
         if self._provider == 'fallback' and self.api_key and self.api_key.startswith('sk-ant-'):
             try:
                 import anthropic
@@ -52,26 +71,28 @@ class LLMLayer:
             except ImportError:
                 logger.warning("anthropic package not installed — run: pip install anthropic")
 
-        # Priority 3: Groq (fast inference)
-        if self._provider == 'fallback' and self.groq_key:
+        # Priority 4: Ollama (local, free)
+        if self._provider == 'fallback':
+            ollama_base = getattr(settings, 'OLLAMA_BASE_URL', 'http://localhost:11434')
+            ollama_model = getattr(settings, 'OLLAMA_MODEL', 'llama3.2')
             try:
+                import requests as _req
+                _req.get(f'{ollama_base}/api/tags', timeout=2)
                 import openai
-                self.client = openai.OpenAI(
-                    base_url='https://api.groq.com/openai/v1',
-                    api_key=self.groq_key,
-                )
-                self._provider = 'groq'
-                logger.info('LLM: Using Groq')
-            except ImportError:
-                logger.warning("openai package not installed for Groq")
+                self.client = openai.OpenAI(base_url=f'{ollama_base}/v1', api_key='ollama')
+                self._provider = 'ollama'
+                self._ollama_model = ollama_model
+                logger.info(f'LLM: Using Ollama ({ollama_model}) at {ollama_base}')
+            except Exception:
+                logger.info('Ollama not reachable')
 
-        # Priority 4: OpenAI
-        if self._provider == 'fallback' and self.api_key and not self.api_key.startswith('sk-ant-'):
+        # Priority 5: OpenAI
+        if self._provider == 'fallback' and self.openai_key:
             try:
                 import openai
-                self.client = openai.OpenAI(api_key=self.api_key)
+                self.client = openai.OpenAI(api_key=self.openai_key)
                 self._provider = 'openai'
-                logger.info('LLM: Using OpenAI')
+                logger.info('LLM: Using OpenAI GPT-4o-mini')
             except ImportError:
                 logger.warning("openai package not installed")
 
@@ -79,36 +100,28 @@ class LLMLayer:
             logger.warning('LLM: No AI provider available — using keyword fallback')
 
     def _call_llm(self, system_prompt: str, user_prompt: str, max_tokens: int = 500) -> str:
-        """Make a call to the LLM API (Anthropic Claude or OpenAI)."""
+        """Make a call to the configured LLM provider."""
         if not self.client:
             return self._fallback_response(user_prompt)
 
         try:
-            if self._provider == 'anthropic':
+            if self._provider == 'gemini':
+                combined = f"{system_prompt}\n\n{user_prompt}"
+                response = self.client.generate_content(
+                    combined,
+                    generation_config={'max_output_tokens': max_tokens, 'temperature': 0.3},
+                )
+                return response.text
+            elif self._provider == 'anthropic':
                 response = self.client.messages.create(
                     model="claude-sonnet-4-20250514",
                     max_tokens=max_tokens,
                     system=system_prompt,
-                    messages=[
-                        {"role": "user", "content": user_prompt},
-                    ],
+                    messages=[{"role": "user", "content": user_prompt}],
                     temperature=0.3,
                 )
                 return response.content[0].text
-            elif self._provider == 'ollama':
-                # Ollama via OpenAI-compatible endpoint
-                response = self.client.chat.completions.create(
-                    model=getattr(self, '_ollama_model', 'llama3.2'),
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    max_tokens=max_tokens,
-                    temperature=0.3,
-                )
-                return response.choices[0].message.content
             elif self._provider == 'groq':
-                # Groq via OpenAI-compatible endpoint
                 response = self.client.chat.completions.create(
                     model='llama-3.3-70b-versatile',
                     messages=[
@@ -119,10 +132,10 @@ class LLMLayer:
                     temperature=0.3,
                 )
                 return response.choices[0].message.content
-            else:
-                # OpenAI path
+            elif self._provider in ('ollama', 'openai'):
+                model = getattr(self, '_ollama_model', 'llama3.2') if self._provider == 'ollama' else 'gpt-4o-mini'
                 response = self.client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model=model,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},

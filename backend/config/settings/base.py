@@ -188,8 +188,11 @@ TRAIN_API_KEY = os.environ.get('TRAIN_API_KEY', '')
 TRAIN_API_HOST = os.environ.get('TRAIN_API_HOST', '')
 TRAIN_API_TIMEOUT = int(os.environ.get('TRAIN_API_TIMEOUT', 12))
 
-# Groq (fast LLM inference)
+# Groq (fast LLM inference — Priority 1)
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
+
+# Gemini (Google AI — Priority 2)
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 
 # Ollama (local LLM)
 OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434')

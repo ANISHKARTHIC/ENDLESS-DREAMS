@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { ItineraryCard } from "./itinerary-card";
+import { ItineraryCard, DAY_COLORS } from "./itinerary-card";
 import type { ItineraryItem } from "@/types";
 import { motion } from "framer-motion";
-import { Calendar, Sun, Sunset, Moon } from "lucide-react";
+
 import { useCurrency } from "@/contexts/currency-context";
 import {
   DndContext,
@@ -34,10 +34,14 @@ interface ItineraryTimelineProps {
 
 function SortableItem({
   item,
+  index,
+  dayColor,
   onToggleLock,
   onStatusChange,
 }: {
   item: ItineraryItem;
+  index: number;
+  dayColor: string;
   onToggleLock?: (id: string) => void;
   onStatusChange?: (id: string, status: string) => void;
 }) {
@@ -53,6 +57,8 @@ function SortableItem({
     <div ref={setNodeRef} style={style} {...attributes}>
       <ItineraryCard
         item={item}
+        index={index}
+        dayColor={dayColor}
         onToggleLock={onToggleLock}
         onStatusChange={onStatusChange}
         isDragging={isDragging}
@@ -62,12 +68,6 @@ function SortableItem({
   );
 }
 
-function getTimeIcon(time: string) {
-  const hour = parseInt(time.split(":")[0]);
-  if (hour < 12) return <Sun className="h-4 w-4 text-amber-500" />;
-  if (hour < 17) return <Sunset className="h-4 w-4 text-orange-500" />;
-  return <Moon className="h-4 w-4 text-indigo-500" />;
-}
 
 export function ItineraryTimeline({
   items,
@@ -154,8 +154,11 @@ export function ItineraryTimeline({
             {/* Day header */}
             <div className="mb-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Calendar className="h-5 w-5 text-primary" />
+                <div
+                  className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold text-sm"
+                  style={{ backgroundColor: DAY_COLORS[(day - 1) % DAY_COLORS.length] }}
+                >
+                  {day}
                 </div>
                 <div>
                   <h3 className="font-bold text-foreground text-lg">Day {day}</h3>
@@ -186,15 +189,27 @@ export function ItineraryTimeline({
                   items={dayItems.map((i) => i.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  {dayItems.map((item) => (
-                      <div key={item.id} className="relative" data-item-id={item.id} data-day-number={item.day_number}>
-                      {/* Timeline dot */}
-                      <div className="absolute -left-[33px] top-5 h-4 w-4 rounded-full bg-background border-2 border-primary flex items-center justify-center">
-                        <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                      </div>
-                      <SortableItem item={item} onToggleLock={onToggleLock} onStatusChange={onStatusChange} />
-                    </div>
-                  ))}
+                  {dayItems.map((item, itemIdx) => {
+                      const dc = DAY_COLORS[(day - 1) % DAY_COLORS.length];
+                      return (
+                        <div key={item.id} className="relative" data-item-id={item.id} data-day-number={item.day_number}>
+                          {/* Timeline dot */}
+                          <div
+                            className="absolute -left-[33px] top-5 h-4 w-4 rounded-full bg-background border-2 flex items-center justify-center"
+                            style={{ borderColor: dc }}
+                          >
+                            <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: dc }} />
+                          </div>
+                          <SortableItem
+                            item={item}
+                            index={itemIdx + 1}
+                            dayColor={dc}
+                            onToggleLock={onToggleLock}
+                            onStatusChange={onStatusChange}
+                          />
+                        </div>
+                      );
+                    })}
                 </SortableContext>
               </DndContext>
             </div>
