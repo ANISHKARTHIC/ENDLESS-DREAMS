@@ -42,6 +42,7 @@ import { TripExpenses } from "@/components/trip/trip-expenses";
 import { TripPhotos } from "@/components/trip/trip-photos";
 import { ShareDialog } from "@/components/trip/share-dialog";
 import { useCurrency } from "@/contexts/currency-context";
+import { exportTripPDF } from "@/lib/export-pdf";
 import {
   Calendar,
   MapPin,
@@ -90,6 +91,7 @@ export default function TripDetailPage() {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [activeUsers, setActiveUsers] = useState<{ username: string; id: string }[]>([]);
   const [heroImage, setHeroImage] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [activeItineraryItemId, setActiveItineraryItemId] = useState<string | null>(null);
   const { convertFromUsd, symbol } = useCurrency();
 
@@ -370,13 +372,26 @@ export default function TripDetailPage() {
                 <Button
                   variant="outline"
                   className="border-accent/30 hover:border-accent/50 hover:bg-accent/5 text-accent"
-                  onClick={() => {
-                    const url = api.getTripPDFUrl(tripId);
-                    window.open(url, "_blank");
+                  disabled={exporting || !itinerary}
+                  onClick={async () => {
+                    if (!trip || !itinerary) return;
+                    setExporting(true);
+                    try {
+                      await exportTripPDF(trip, itinerary, symbol, convertFromUsd);
+                    } finally {
+                      setExporting(false);
+                    }
                   }}
                 >
-                  <FileDown className="h-4 w-4 mr-1.5" />
-                  <span className="hidden sm:inline">Export</span>
+                  {exporting ? (
+                    <svg className="h-4 w-4 mr-1.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                  ) : (
+                    <FileDown className="h-4 w-4 mr-1.5" />
+                  )}
+                  <span className="hidden sm:inline">{exporting ? "Exporting…" : "Export PDF"}</span>
                 </Button>
                 {/* Customize Button */}
                 <Button

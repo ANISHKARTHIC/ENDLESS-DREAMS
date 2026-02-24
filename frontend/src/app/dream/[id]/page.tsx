@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Navbar } from "@/components/layout/navbar";
 import { api } from "@/lib/api";
 import { cn, formatDate, formatTime } from "@/lib/utils";
+import { exportTripPDF } from "@/lib/export-pdf";
 import { CategoryIcon } from "@/components/ui/category-icon";
 import { useCurrency } from "@/contexts/currency-context";
 import type { Trip, Itinerary, ItineraryItem } from "@/types";
@@ -15,7 +16,7 @@ import {
   ChevronLeft, CheckCircle2, Circle, AlertTriangle,
   Star, Zap, Navigation, ArrowRight, ArrowDown, Play, Pause,
   RefreshCw, Timer, TrendingUp, Flag, Home, Users,
-  Coffee, Loader2, ChevronDown, ChevronUp, Bell, X,
+  Coffee, Loader2, ChevronDown, ChevronUp, Bell, X, FileDown,
 } from "lucide-react";
 
 interface SavedItinerary {
@@ -84,6 +85,7 @@ export default function DreamDetailPage() {
   const [delayAlert,     setDelayAlert]       = useState<{ item: ItineraryItem; minsLate: number } | null>(null);
   const [expandedDays,   setExpandedDays]     = useState<Record<number, boolean>>({});
   const [rescheduled,    setRescheduled]      = useState(false);
+  const [exporting,      setExporting]        = useState(false);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Today's day number in the trip ──
@@ -724,6 +726,24 @@ export default function DreamDetailPage() {
                 View Full Trip Details
                 <ArrowRight className="h-4 w-4" />
               </Link>
+              <button
+                disabled={exporting || !itinerary}
+                onClick={async () => {
+                  if (!trip || !itinerary) return;
+                  setExporting(true);
+                  try { await exportTripPDF(trip, itinerary, symbol, convertFromUsd); }
+                  finally { setExporting(false); }
+                }}
+                className="flex items-center gap-2 px-6 py-4 rounded-2xl border border-border font-semibold text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition disabled:opacity-50"
+              >
+                {exporting ? (
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                ) : <FileDown className="h-4 w-4" />}
+                {exporting ? "Exporting…" : "Export PDF"}
+              </button>
             </>
           ) : (
             <button
