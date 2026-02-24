@@ -36,38 +36,53 @@ class TravelSearchView(APIView):
         date = data['travel_date']
         transport_types = data.get('transport_types', ['flight', 'train', 'bus'])
 
-        # Check cache
+        # Check cache (ignore DB errors)
         cache_key = self._cache_key(departure, arrival, date, transport_types)
-        cached = self._get_cached(cache_key)
-        if cached:
-            return Response(cached)
+        try:
+            cached = self._get_cached(cache_key)
+            if cached:
+                return Response(cached)
+        except Exception as e:
+            logger.warning(f"Cache lookup failed: {e}")
 
         all_options = []
 
         if 'flight' in transport_types:
-            flights_svc = FlightsService()
-            flights = flights_svc.search(departure, arrival, date)
-            all_options.extend(flights)
+            try:
+                flights_svc = FlightsService()
+                all_options.extend(flights_svc.search(departure, arrival, date))
+            except Exception as e:
+                logger.warning(f"Flights search failed: {e}")
 
         if 'train' in transport_types:
-            trains_svc = TrainsService()
-            trains = trains_svc.search(departure, arrival, date)
-            all_options.extend(trains)
+            try:
+                trains_svc = TrainsService()
+                all_options.extend(trains_svc.search(departure, arrival, date))
+            except Exception as e:
+                logger.warning(f"Trains search failed: {e}")
 
         if 'bus' in transport_types:
-            buses_svc = BusesService()
-            buses = buses_svc.search(departure, arrival, date)
-            all_options.extend(buses)
+            try:
+                buses_svc = BusesService()
+                all_options.extend(buses_svc.search(departure, arrival, date))
+            except Exception as e:
+                logger.warning(f"Buses search failed: {e}")
 
-        # Persist options to DB
+        # Persist options to DB (best-effort — skip if tables unavailable)
         saved_options = []
         for opt in all_options:
-            obj = TravelOption.objects.create(**opt)
-            saved_options.append(obj)
+            try:
+                obj = TravelOption.objects.create(**opt)
+                saved_options.append(obj)
+            except Exception as e:
+                logger.warning(f"Could not persist travel option to DB: {e}")
 
-        # Annotate badges
-        serialized = TravelOptionSerializer(saved_options, many=True).data
-        serialized = self._annotate_badges(serialized)
+        # If we couldn't persist, serialise the raw dicts directly
+        if saved_options:
+            serialized = TravelOptionSerializer(saved_options, many=True).data
+        else:
+            serialized = all_options  # raw dicts from service layer
+        serialized = self._annotate_badges(list(serialized))
 
         result = {
             'departure_city': departure,
@@ -77,7 +92,10 @@ class TravelSearchView(APIView):
             'options': serialized,
         }
 
-        self._cache_result(cache_key, result)
+        try:
+            self._cache_result(cache_key, result)
+        except Exception as e:
+            logger.warning(f"Cache save failed: {e}")
         return Response(result)
 
     def _annotate_badges(self, options):

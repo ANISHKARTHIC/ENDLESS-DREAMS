@@ -377,9 +377,23 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
     return options;
   };
 
-  // Search travel when entering step 1 (travel)
+  // Search travel when entering step 3 (travel)
   const searchTravel = async () => {
     if (!form.departure_city || !form.destination_city || !form.start_date) return;
+
+    // Resolve city objects — prefer selected (has coordinates), fall back to lookup
+    const depC = (selectedDepCity?.lat && selectedDepCity?.lng ? selectedDepCity : null)
+      ?? getCityData(form.departure_city);
+    const destC = (selectedDestCity?.lat && selectedDestCity?.lng ? selectedDestCity : null)
+      ?? getCityData(form.destination_city);
+
+    // ── Step 1: Show fallback options immediately so the step is never empty ──
+    if (depC && destC) {
+      const instant = generateFallbackOptions(depC, destC, form.start_date);
+      setTravelOptions(instant);
+    }
+
+    // ── Step 2: Try live backend results (Amadeus / DB) ──
     setTravelLoading(true);
     try {
       const result: TravelSearchResponse = await api.searchTravel({
@@ -389,22 +403,16 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
       });
       const liveOptions = result.options || [];
       if (liveOptions.length > 0) {
+        // Replace fallback with real data
         setTravelOptions(liveOptions);
-      } else {
-        // Amadeus returned nothing (common for Indian domestic/short routes)
-        // Fall back to smart estimated options based on coordinates + distance
-        const fallback = selectedDepCity && selectedDestCity
-          ? generateFallbackOptions(selectedDepCity, selectedDestCity, form.start_date)
-          : [];
-        setTravelOptions(fallback);
       }
+      // else: fallback already shown — keep it
     } catch (err) {
-      console.error("Travel search failed:", err);
-      // Still show fallback even on API error
-      const fallback = selectedDepCity && selectedDestCity
-        ? generateFallbackOptions(selectedDepCity, selectedDestCity, form.start_date)
-        : [];
-      setTravelOptions(fallback);
+      console.warn("Travel search API unavailable, using estimated options:", err);
+      // Fallback already set above; if depC/destC was null above, try once more now
+      if ((!depC || !destC) && selectedDepCity && selectedDestCity) {
+        setTravelOptions(generateFallbackOptions(selectedDepCity, selectedDestCity, form.start_date));
+      }
     } finally {
       setTravelLoading(false);
     }
