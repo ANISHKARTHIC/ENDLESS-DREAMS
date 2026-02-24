@@ -120,7 +120,7 @@ export default function LandingPage() {
               <p className="text-white/70 text-sm sm:text-base uppercase tracking-[0.3em] font-light mb-3">
                 {HERO_SLIDES[currentSlide].subtitle}
               </p>
-              <h1 className="text-5xl sm:text-7xl lg:text-8xl font-bold text-white leading-[1.05] tracking-tight">
+              <h1 className="hero-title text-5xl sm:text-7xl lg:text-8xl font-bold text-white leading-[1.05] tracking-tight">
                 {HERO_SLIDES[currentSlide].title}
               </h1>
               <p className="mt-5 text-white/80 text-lg sm:text-xl max-w-xl mx-auto leading-relaxed font-light">
@@ -133,7 +133,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="mt-10 flex items-center gap-4"
+            className="hero-cta mt-10 flex items-center gap-4"
           >
             <Link href="/dashboard">
               <Button
@@ -289,7 +289,7 @@ export default function LandingPage() {
             </p>
           </motion.div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="features-grid grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               {
                 icon: Brain,
@@ -371,7 +371,7 @@ export default function LandingPage() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="destination-grid grid grid-cols-2 md:grid-cols-4 gap-4">
             {DESTINATIONS.map((dest, idx) => (
               <motion.div
                 key={dest.city}
@@ -381,7 +381,7 @@ export default function LandingPage() {
                 transition={{ delay: idx * 0.05 }}
               >
                 <Link href="/dashboard">
-                  <div className="group relative aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer">
+                  <div className="destination-card group relative aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer">
                     <Image
                       src={dest.image}
                       alt={dest.city}

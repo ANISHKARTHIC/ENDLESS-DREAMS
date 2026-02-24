@@ -407,51 +407,335 @@
 
 /* ═══════════ MOBILE RESPONSIVE ═══════════ */
 
-/* Touch-friendly targets */
-@media (max-width: 640px) {
-  button, a, [role="button"] {
+/* ── Touch-friendly tap targets ── */
+@media (pointer: coarse) {
+  button, a, [role="button"], input, select, textarea {
     min-height: 44px;
-    min-width: 44px;
-  }
-
-  /* Stack header buttons vertically on very small screens */
-  .glass-card .flex.items-center.gap-3 {
-    flex-wrap: wrap;
-  }
-
-  /* Full-width cards on mobile */
-  .glass-card {
-    border-radius: 0.75rem;
-  }
-
-  /* Compact tab navigation */
-  .scrollbar-hide {
-    gap: 2px;
-  }
-
-  /* Reduce hero text sizes */
-  .hero-title {
-    font-size: 2.5rem;
-    line-height: 1.1;
   }
 }
 
-@media (max-width: 768px) {
-  /* Tighter padding on tablets */
+/* ── Small phones (≤ 480px) ── */
+@media (max-width: 480px) {
+  /* Global padding */
   main {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    padding-top: 4.5rem !important;
+  }
+
+  /* Cards */
+  .glass-card {
+    border-radius: 0.875rem;
+    padding: 1rem !important;
+  }
+
+  /* ── Landing hero ── */
+  .hero-title {
+    font-size: 2.25rem !important;
+    line-height: 1.1;
+  }
+  .hero-subtitle {
+    font-size: 0.95rem !important;
+  }
+  /* Hero CTA buttons stack */
+  .hero-cta {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+  .hero-cta a, .hero-cta button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* ── Navbar ── */
+  /* Logo text hidden – already handled by hidden sm:block, but ensure icon shows */
+  header .max-w-7xl {
     padding-left: 0.75rem;
     padding-right: 0.75rem;
   }
 
-  /* Sidebar stacks below main content on mobile */
+  /* ── Trip form step indicator ── */
+  .step-indicator {
+    gap: 0.25rem !important;
+  }
+  .step-indicator .step-line {
+    width: 1.5rem !important;
+  }
+
+  /* ── Trip form: city search labels ── */
+  .city-search-label {
+    font-size: 0.8rem !important;
+  }
+
+  /* ── Trip page header ── */
+  .trip-header-meta {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+  .trip-header-meta span {
+    font-size: 0.75rem !important;
+  }
+
+  /* ── Trip page action buttons (Export, Customize, Save, Share) ── */
+  .trip-actions {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+  .trip-actions button, .trip-actions a {
+    padding-left: 0.625rem !important;
+    padding-right: 0.625rem !important;
+    font-size: 0.75rem !important;
+    min-height: 36px !important;
+  }
+
+  /* ── Trip tab bar ── */
+  .tab-bar {
+    padding: 0.25rem !important;
+    gap: 0 !important;
+  }
+  .tab-bar button {
+    padding: 0.375rem 0.5rem !important;
+    font-size: 0.7rem !important;
+    min-height: 34px !important;
+  }
+
+  /* ── Day filter chips ── */
+  .day-filter button {
+    padding: 0.25rem 0.75rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  /* ── Itinerary card ── */
+  .itinerary-card-photo {
+    height: 140px !important;
+  }
+  .itinerary-card-body {
+    padding: 0.875rem !important;
+  }
+  .itinerary-card-meta {
+    flex-wrap: wrap !important;
+    gap: 0.375rem !important;
+    font-size: 0.7rem !important;
+  }
+
+  /* ── Budget progress ── */
+  .budget-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.25rem !important;
+  }
+
+  /* ── Travel comparison cards ── */
+  .travel-card {
+    padding: 0.875rem !important;
+  }
+  .travel-card-header {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+  .travel-card-price {
+    font-size: 1.25rem !important;
+  }
+  .travel-amenities {
+    flex-wrap: wrap !important;
+  }
+
+  /* ── Auth modal ── */
+  .auth-modal {
+    margin: 0.75rem !important;
+    max-width: calc(100vw - 1.5rem) !important;
+    padding: 1.25rem !important;
+  }
+  .auth-modal h2 {
+    font-size: 1.25rem !important;
+  }
+
+  /* ── Dream detail page ── */
+  .dream-hero {
+    height: 55vh !important;
+    min-height: 280px !important;
+  }
+  .dream-hero-title {
+    font-size: 1.75rem !important;
+  }
+  .dream-stat-pills {
+    flex-wrap: wrap !important;
+    gap: 0.375rem !important;
+  }
+  .dream-stat-pill {
+    font-size: 0.7rem !important;
+    padding: 0.25rem 0.5rem !important;
+  }
+  /* Journey strip scrolls horizontally */
+  .journey-strip {
+    overflow-x: auto !important;
+    padding-bottom: 0.5rem !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .journey-strip > div {
+    min-width: max-content !important;
+  }
+
+  /* ── Explore page grid ── */
+  .explore-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  /* ── Profile page tabs ── */
+  .profile-tabs {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .profile-tab-btn {
+    white-space: nowrap !important;
+    font-size: 0.8rem !important;
+    padding: 0.5rem 0.75rem !important;
+  }
+
+  /* ── Trip notes / checklists ── */
+  .notes-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Landing destination cards ── */
+  .destination-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.625rem !important;
+  }
+  .destination-card {
+    height: 150px !important;
+  }
+
+  /* ── Feature cards on landing ── */
+  .features-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  /* ── Footer ── */
+  footer .footer-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+    text-align: center !important;
+  }
+
+  /* ── Floating action row (export PDF + view trip in dream page) ── */
+  .dream-footer-actions {
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+  .dream-footer-actions button,
+  .dream-footer-actions a {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* ── Progress tracking bar in dream page ── */
+  .live-progress-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
+  }
+}
+
+/* ── Tablets (481–768px) ── */
+@media (min-width: 481px) and (max-width: 768px) {
+  main {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 5rem;
+  }
+
+  .hero-title {
+    font-size: 3rem;
+    line-height: 1.1;
+  }
+
+  /* Destination grid 2-col */
+  .destination-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Trip page: action buttons wrap on tablets */
+  .trip-actions {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* Feature cards 2-col on tablet */
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1rem !important;
+  }
+
+  /* Map hidden on tablet (col-span collapses) */
   .grid.lg\:grid-cols-3 {
     grid-template-columns: 1fr;
   }
+}
 
-  /* Make section padding smaller */
+/* ── All mobile (≤ 768px) — shared rules ── */
+@media (max-width: 768px) {
+  /* Sidebar map never shows on mobile */
+  .hidden.lg\:block {
+    display: none !important;
+  }
+
+  /* Itinerary full width */
+  .lg\:grid-cols-\[minmax\(0\,1fr\)_500px\] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Trip col-span-3 grid collapses */
+  .grid.lg\:grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Section padding */
   section {
     padding-top: 2rem;
     padding-bottom: 2rem;
+  }
+
+  /* Reduced card spacing */
+  .glass-card {
+    border-radius: 1rem;
+  }
+
+  /* Transport info strip: wrap */
+  .transport-strip {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  /* Scrollable tab bar */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Modal max-height */
+  [role="dialog"] {
+    max-height: 95vh;
+    overflow-y: auto;
+  }
+
+  /* Stat cards in 2-col grid on mobile */
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Globe hidden on mobile hero */
+  .globe-mobile-hidden {
+    display: none !important;
+  }
+
+  /* Shared page: read-only trip stacks fully */
+  .shared-grid {
+    grid-template-columns: 1fr !important;
   }
 }
 

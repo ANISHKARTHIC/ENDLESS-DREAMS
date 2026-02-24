@@ -253,7 +253,7 @@ export default function DreamDetailPage() {
       <Navbar />
 
       {/* ══ HERO ══ */}
-      <div className="relative h-[55vh] min-h-[380px] overflow-hidden">
+      <div className="dream-hero relative h-[55vh] min-h-[380px] overflow-hidden">
         {heroImage ? (
           <img src={heroImage} alt={trip.destination_city} className="h-full w-full object-cover" />
         ) : (
@@ -283,7 +283,7 @@ export default function DreamDetailPage() {
                 </span>
               )}
             </div>
-            <h1 className="text-4xl sm:text-5xl font-black text-white drop-shadow-lg tracking-tight">
+            <h1 className="dream-hero-title text-4xl sm:text-5xl font-black text-white drop-shadow-lg tracking-tight">
               {trip.destination_city}
               <span className="text-white/60 font-light">, {trip.destination_country}</span>
             </h1>
@@ -307,7 +307,7 @@ export default function DreamDetailPage() {
         {/* ══ STAT PILLS ══ */}
         <motion.div
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-          className="flex flex-wrap gap-3 -mt-5 relative z-10 mb-8"
+          className="dream-stat-pills flex flex-wrap gap-3 -mt-5 relative z-10 mb-8"
         >
           {[
             { icon: <TrendingUp className="h-4 w-4" />, label: "Budget",    value: `${symbol}${Math.round(convertFromUsd(Number(trip.budget_usd))).toLocaleString()}`,  color: "bg-blue-500/15 text-blue-600 dark:text-blue-400" },
@@ -315,7 +315,7 @@ export default function DreamDetailPage() {
             { icon: <Zap className="h-4 w-4" />,          label: "Est. Cost",  value: `${symbol}${Math.round(convertFromUsd(totalCost)).toLocaleString()}`, color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
             { icon: <Flag className="h-4 w-4" />,         label: "Pace",       value: trip.pace,                    color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
           ].map((s) => (
-            <div key={s.label} className={cn("flex items-center gap-2 px-4 py-2.5 rounded-2xl font-semibold text-sm backdrop-blur-sm border border-white/10 shadow-sm", s.color)}>
+            <div key={s.label} className={cn("dream-stat-pill flex items-center gap-2 px-4 py-2.5 rounded-2xl font-semibold text-sm backdrop-blur-sm border border-white/10 shadow-sm", s.color)}>
               {s.icon}
               <span className="text-muted-foreground/60 text-xs mr-0.5">{s.label}</span>
               <span className="capitalize">{s.value}</span>
@@ -329,7 +329,7 @@ export default function DreamDetailPage() {
           className="glass-card p-5 mb-8 rounded-2xl"
         >
           <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-5">Journey Overview</h2>
-          <div className="flex items-center gap-0 overflow-x-auto scrollbar-hide pb-2">
+          <div className="journey-strip flex items-center gap-0 overflow-x-auto scrollbar-hide pb-2">
             {/* Origin */}
             <div className="flex flex-col items-center shrink-0 min-w-[90px]">
               <div className="h-10 w-10 rounded-full bg-primary/15 border-2 border-primary flex items-center justify-center mb-1.5">
@@ -698,7 +698,7 @@ export default function DreamDetailPage() {
         {/* ══ CTA ══ */}
         <motion.div
           initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
-          className="flex flex-col sm:flex-row gap-4 items-center justify-center"
+          className="dream-footer-actions flex flex-col sm:flex-row gap-4 items-center justify-center"
         >
           {!trackingActive ? (
             <>

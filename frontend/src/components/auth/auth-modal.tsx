@@ -206,7 +206,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, defaultTab = "login" }: 
             transition={{ type: "spring", duration: 0.5 }}
             className="fixed inset-0 z-[101] flex items-center justify-center p-4"
           >
-            <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
+            <div className="auth-modal w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
               {/* Header */}
               <div className="relative px-6 pt-6 pb-4">
                 <button

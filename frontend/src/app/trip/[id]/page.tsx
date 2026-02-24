@@ -321,7 +321,7 @@ export default function TripDetailPage() {
                     </span>
                   )}
                 </div>
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                <div className="trip-header-meta flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">
                     <MapPin className="h-4 w-4" />
                     {trip.destination_country}
@@ -341,8 +341,8 @@ export default function TripDetailPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                {/* Collaboration presence avatars */}
+              <div className="trip-actions flex items-center gap-3">
+                {/* Collaboration presence avatars */
                 {activeUsers.length > 0 && (
                   <div className="flex items-center gap-1.5">
                     <div className="flex -space-x-2">
@@ -448,7 +448,7 @@ export default function TripDetailPage() {
 
           {/* Tab navigation */}
           <div className="flex items-center justify-between mb-6 gap-2">
-            <div className="flex items-center gap-0.5 p-1 rounded-xl bg-muted border border-border/40 overflow-x-auto scrollbar-hide">
+            <div className="tab-bar flex items-center gap-0.5 p-1 rounded-xl bg-muted border border-border/40 overflow-x-auto scrollbar-hide">
               {(
                 [
                   { key: "itinerary", label: "Itinerary", icon: Activity },
@@ -517,7 +517,7 @@ export default function TripDetailPage() {
                 <>
                   {/* Day filter */}
                   {days.length > 1 && (
-                    <div className="flex items-center gap-2 mb-6 overflow-x-auto scrollbar-hide pb-2">
+                    <div className="day-filter flex items-center gap-2 mb-6 overflow-x-auto scrollbar-hide pb-2">
                       <button
                         onClick={() => setSelectedDay(undefined)}
                         className={`px-4 py-1.5 rounded-full text-sm font-medium transition whitespace-nowrap ${
