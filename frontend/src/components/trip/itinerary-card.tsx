@@ -8,7 +8,6 @@ import {
   Lock,
   Unlock,
   GripVertical,
-  MapPin,
   Star,
   Clock,
   ChevronDown,
@@ -19,6 +18,7 @@ import {
   Zap,
   Sparkles,
   ImageOff,
+  TrendingUp,
 } from "lucide-react";
 import type { ItineraryItem } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
@@ -38,15 +38,15 @@ type PlacePhoto = { url: string };
 const placePhotoCache: Record<string, PlacePhoto | null> = {};
 
 export const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
-  food:        { bg: "bg-orange-100 dark:bg-orange-900/30", text: "text-orange-700 dark:text-orange-300" },
-  culture:     { bg: "bg-amber-100 dark:bg-amber-900/30",   text: "text-amber-700 dark:text-amber-300" },
+  food:        { bg: "bg-orange-100 dark:bg-orange-900/30",   text: "text-orange-700 dark:text-orange-300" },
+  culture:     { bg: "bg-amber-100 dark:bg-amber-900/30",     text: "text-amber-700 dark:text-amber-300" },
   nature:      { bg: "bg-emerald-100 dark:bg-emerald-900/30", text: "text-emerald-700 dark:text-emerald-300" },
-  adventure:   { bg: "bg-blue-100 dark:bg-blue-900/30",     text: "text-blue-700 dark:text-blue-300" },
-  relaxation:  { bg: "bg-purple-100 dark:bg-purple-900/30", text: "text-purple-700 dark:text-purple-300" },
-  shopping:    { bg: "bg-pink-100 dark:bg-pink-900/30",     text: "text-pink-700 dark:text-pink-300" },
-  nightlife:   { bg: "bg-indigo-100 dark:bg-indigo-900/30", text: "text-indigo-700 dark:text-indigo-300" },
-  landmark:    { bg: "bg-rose-100 dark:bg-rose-900/30",     text: "text-rose-700 dark:text-rose-300" },
-  default:     { bg: "bg-slate-100 dark:bg-slate-800/50",   text: "text-slate-600 dark:text-slate-400" },
+  adventure:   { bg: "bg-blue-100 dark:bg-blue-900/30",       text: "text-blue-700 dark:text-blue-300" },
+  relaxation:  { bg: "bg-purple-100 dark:bg-purple-900/30",   text: "text-purple-700 dark:text-purple-300" },
+  shopping:    { bg: "bg-pink-100 dark:bg-pink-900/30",       text: "text-pink-700 dark:text-pink-300" },
+  nightlife:   { bg: "bg-indigo-100 dark:bg-indigo-900/30",   text: "text-indigo-700 dark:text-indigo-300" },
+  landmark:    { bg: "bg-rose-100 dark:bg-rose-900/30",       text: "text-rose-700 dark:text-rose-300" },
+  default:     { bg: "bg-slate-100 dark:bg-slate-800/50",     text: "text-slate-600 dark:text-slate-400" },
 };
 
 export const DAY_COLORS = [
@@ -55,11 +55,11 @@ export const DAY_COLORS = [
 ];
 
 const STATUS_CONFIG: Record<string, { label: string; dotClass: string; textClass: string }> = {
-  scheduled:   { label: "Planned",   dotClass: "bg-slate-400",              textClass: "text-slate-500 dark:text-slate-400" },
-  in_progress: { label: "Live",      dotClass: "bg-blue-500 animate-pulse", textClass: "text-blue-600 dark:text-blue-400" },
-  completed:   { label: "Done",      dotClass: "bg-emerald-500",            textClass: "text-emerald-600 dark:text-emerald-400" },
-  skipped:     { label: "Skipped",   dotClass: "bg-gray-300 dark:bg-gray-600", textClass: "text-gray-400 dark:text-gray-500" },
-  replanned:   { label: "Replanned", dotClass: "bg-amber-400",              textClass: "text-amber-600 dark:text-amber-400" },
+  scheduled:   { label: "scheduled",  dotClass: "bg-slate-400",               textClass: "text-slate-500 dark:text-slate-400" },
+  in_progress: { label: "live",       dotClass: "bg-blue-500 animate-pulse",  textClass: "text-blue-600 dark:text-blue-400" },
+  completed:   { label: "done",       dotClass: "bg-emerald-500",             textClass: "text-emerald-600 dark:text-emerald-400" },
+  skipped:     { label: "skipped",    dotClass: "bg-gray-300 dark:bg-gray-600", textClass: "text-gray-400 dark:text-gray-500" },
+  replanned:   { label: "replanned",  dotClass: "bg-amber-400",               textClass: "text-amber-600 dark:text-amber-400" },
 };
 
 const NEXT_STATUS: Record<string, string> = {
@@ -130,186 +130,215 @@ export function ItineraryCard({
     return () => { isMounted = false; };
   }, [cacheKey, item.place.city, item.place.image_url, item.place.name]);
 
-  const catKey    = (item.place.category || "default").toLowerCase();
-  const catColors = CATEGORY_COLORS[catKey] || CATEGORY_COLORS.default;
-  const statusCfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.scheduled;
-  const durationH = Math.floor(item.duration_minutes / 60);
-  const durationM = item.duration_minutes % 60;
-  const cost      = Number(item.estimated_cost_usd);
-  const priceInfo = getPriceLabel(catKey);
-  const hasPhoto  = photo?.url && !imgError;
+  const catKey     = (item.place.category || "default").toLowerCase();
+  const catColors  = CATEGORY_COLORS[catKey] || CATEGORY_COLORS.default;
+  const statusCfg  = STATUS_CONFIG[item.status] || STATUS_CONFIG.scheduled;
+  const durationH  = Math.floor(item.duration_minutes / 60);
+  const durationM  = item.duration_minutes % 60;
+  const cost       = Number(item.estimated_cost_usd);
+  const rating     = Number(item.place.rating);
+  const aiScore    = Number(item.score);
+  const priceInfo  = getPriceLabel(catKey);
+  const hasPhoto   = photo?.url && !imgError;
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, x: -6 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 4 }}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
       transition={{ duration: 0.16 }}
       className={cn(
-        "group relative flex items-stretch rounded-xl border bg-card/80 backdrop-blur-sm overflow-hidden",
-        "transition-all duration-200 hover:shadow-md hover:shadow-black/[0.06] dark:hover:shadow-black/20",
+        "group relative flex gap-0 rounded-xl border bg-card overflow-hidden",
+        "transition-all duration-200 hover:shadow-lg hover:shadow-black/[0.08] dark:hover:shadow-black/25",
         isDragging && "shadow-2xl scale-[1.01] opacity-95 z-50",
         item.is_locked
           ? "border-amber-300/50 dark:border-amber-700/30"
           : "border-border/50 hover:border-border/80"
       )}
     >
-      {/* Left accent bar */}
-      <div className="w-[3px] shrink-0 rounded-l-xl" style={{ backgroundColor: dayColor }} />
-
-      {/* Index + time column */}
-      <div className="flex flex-col items-center justify-between gap-1 px-2.5 py-3 shrink-0 min-w-[48px]">
+      {/* ── Left: drag + time ── */}
+      <div className="flex flex-col items-center gap-1 pt-2.5 pb-2.5 px-2 shrink-0 w-[58px]">
+        {/* Drag handle */}
         <div
-          className="h-5 w-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
-          style={{ backgroundColor: dayColor }}
+          {...(dragHandleProps || {})}
+          className={cn(
+            "p-0.5 rounded text-muted-foreground/20 hover:text-muted-foreground/50 transition-colors",
+            dragHandleProps ? "cursor-grab active:cursor-grabbing" : "invisible"
+          )}
         >
-          {index}
+          <GripVertical className="h-4 w-4" />
         </div>
-        <div className="flex flex-col items-center gap-0.5 select-none">
+        {/* Times */}
+        <div className="flex flex-col items-center gap-0.5 mt-1 select-none">
           <span className="text-[10px] font-bold text-foreground/80 tabular-nums leading-none">
             {formatTime(item.start_time)}
           </span>
-          <div className="w-px h-3 bg-border/40" />
-          <span className="text-[9px] text-muted-foreground/50 tabular-nums leading-none">
+          <div className="flex flex-col items-center gap-0.5 my-0.5">
+            <div className="w-px h-1.5 bg-border/40" />
+            <div className="h-1 w-1 rounded-full bg-border/30" />
+            <div className="w-px h-1.5 bg-border/40" />
+          </div>
+          <span className="text-[10px] text-muted-foreground/50 tabular-nums leading-none">
             {formatTime(item.end_time)}
           </span>
         </div>
       </div>
 
-      {/* Separator */}
-      <div className="w-px bg-border/30 my-3 shrink-0" />
+      {/* ── Right: full card content ── */}
+      <div className="flex-1 min-w-0 flex flex-col">
 
-      {/* Main content */}
-      <div className="flex-1 min-w-0 px-3 py-2.5">
-        {/* Name + controls row */}
-        <div className="flex items-start gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <CategoryIcon category={item.place.category} size="sm" />
-              <h3 className="text-sm font-semibold text-foreground leading-snug truncate">
-                {item.place.name}
-              </h3>
-              {item.is_locked && <Lock className="h-3 w-3 text-amber-500 shrink-0" />}
-            </div>
-
-            {/* City + rating */}
-            <div className="flex items-center gap-1 mt-0.5">
-              <MapPin className="h-2.5 w-2.5 text-muted-foreground/35 shrink-0" />
-              <span className="text-[10px] text-muted-foreground/60 truncate">{item.place.city}</span>
-              {Number(item.place.rating) > 0 && (
-                <>
-                  <span className="text-muted-foreground/25">&#183;</span>
-                  <Star className="h-2.5 w-2.5 text-amber-400 fill-amber-400 shrink-0" />
-                  <span className="text-[10px] text-foreground/60 font-medium">
-                    {Number(item.place.rating).toFixed(1)}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Drag handle */}
-          {dragHandleProps && (
-            <div
-              {...dragHandleProps}
-              className="shrink-0 p-0.5 text-muted-foreground/20 hover:text-muted-foreground/50 cursor-grab active:cursor-grabbing transition-colors mt-0.5"
-            >
-              <GripVertical className="h-4 w-4" />
-            </div>
-          )}
-        </div>
-
-        {/* Pills row */}
-        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-          {/* Category */}
-          <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-medium capitalize", catColors.bg, catColors.text)}>
-            {item.place.category}
-          </span>
-
-          {/* Status */}
-          <button
-            onClick={() => onStatusChange?.(item.id, NEXT_STATUS[item.status] || "scheduled")}
-            className={cn("flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-background/50 border border-border/40 hover:border-border transition-colors", statusCfg.textClass)}
-            title="Click to update status"
-          >
-            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusCfg.dotClass)} />
-            {statusCfg.label}
-          </button>
-
-          {/* Duration */}
-          {item.duration_minutes > 0 && (
-            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground/60">
-              <Clock className="h-2.5 w-2.5 shrink-0" />
-              {durationH > 0 ? `${durationH}h` : ""}{durationM > 0 ? ` ${durationM}m` : ""}
-            </span>
-          )}
-
-          {/* Price */}
-          {cost > 0 ? (
-            <span className="flex items-center gap-1 ml-auto">
-              <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground/45">
-                {priceInfo.icon}
-                <span>{priceInfo.label}</span>
-              </span>
-              <span className="text-[11px] font-bold" style={{ color: dayColor }}>
-                {symbol}{Math.round(convertFromUsd(cost)).toLocaleString()}
-              </span>
-            </span>
-          ) : (
-            <span className="flex items-center gap-0.5 ml-auto text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-              <Sparkles className="h-2.5 w-2.5" />
-              Free
-            </span>
-          )}
-        </div>
-
-        {/* Description */}
-        {item.place.description && (
-          <div className="mt-1.5">
-            <AnimatePresence initial={false}>
-              <p className={cn("text-[11px] text-muted-foreground/65 leading-relaxed", !expanded && "line-clamp-1")}>
-                {item.place.description}
-              </p>
-            </AnimatePresence>
-            {item.place.description.length > 80 && (
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="flex items-center gap-0.5 text-[10px] text-primary/40 hover:text-primary/80 mt-0.5 transition-colors"
-              >
-                {expanded ? <><ChevronUp className="h-2.5 w-2.5" />less</> : <><ChevronDown className="h-2.5 w-2.5" />more</>}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Right: thumbnail */}
-      <div className="flex flex-col items-center justify-between gap-2 py-2.5 pr-2.5 shrink-0">
-        {hasPhoto ? (
-          <div className="h-[72px] w-[80px] rounded-lg overflow-hidden border border-border/20 shrink-0">
+        {/* Photo banner */}
+        <div className="relative w-full h-[160px] overflow-hidden bg-muted/30">
+          {hasPhoto ? (
             <img
               src={photo!.url}
               alt={item.place.name}
-              className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               onError={() => setImgError(true)}
               loading="lazy"
             />
-          </div>
-        ) : (
-          <div className="h-[72px] w-[80px] rounded-lg bg-muted/30 flex items-center justify-center border border-border/20 shrink-0">
-            <ImageOff className="h-5 w-5 text-muted-foreground/15" />
-          </div>
-        )}
+          ) : (
+            <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-muted/70 to-muted/30">
+              <ImageOff className="h-8 w-8 text-muted-foreground/15" />
+            </div>
+          )}
 
-        {/* Lock button */}
-        <button
-          onClick={() => onToggleLock?.(item.id)}
-          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted text-muted-foreground/30 hover:text-foreground"
-          title={item.is_locked ? "Unlock" : "Lock"}
-        >
-          {item.is_locked ? <Lock className="h-3 w-3 text-amber-400" /> : <Unlock className="h-3 w-3" />}
-        </button>
+          {/* gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent" />
+
+          {/* index badge — top left */}
+          <div
+            className="absolute top-2.5 left-2.5 h-5 w-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shadow"
+            style={{ backgroundColor: dayColor }}
+          >
+            {index}
+          </div>
+
+          {/* lock button — top right (hover) */}
+          <button
+            onClick={() => onToggleLock?.(item.id)}
+            className="absolute top-2.5 right-2.5 p-1 rounded-md bg-black/30 backdrop-blur-sm text-white/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            title={item.is_locked ? "Unlock" : "Lock"}
+          >
+            {item.is_locked ? <Lock className="h-3 w-3 text-amber-300" /> : <Unlock className="h-3 w-3" />}
+          </button>
+
+          {/* Name + city — bottom left */}
+          <div className="absolute bottom-2.5 left-3 right-16">
+            <div className="flex items-center gap-1.5">
+              <CategoryIcon category={item.place.category} size="sm" />
+              <p className="text-[13px] font-bold text-white leading-snug line-clamp-1 drop-shadow">
+                {item.place.name}
+              </p>
+              {item.is_locked && <Lock className="h-2.5 w-2.5 text-amber-300 shrink-0" />}
+            </div>
+            <p className="text-[10px] text-white/60 mt-0.5 drop-shadow">{item.place.city}</p>
+          </div>
+
+          {/* Rating — bottom right */}
+          {rating > 0 && (
+            <div className="absolute bottom-2.5 right-3 flex items-center gap-0.5">
+              <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
+              <span className="text-[11px] font-semibold text-white drop-shadow">{rating.toFixed(1)}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Card body */}
+        <div className="px-3 pt-2.5 pb-3">
+          {/* Description */}
+          {item.place.description && (
+            <div className="mb-2">
+              <AnimatePresence initial={false}>
+                <p className={cn("text-[11px] text-muted-foreground/75 leading-relaxed", !expanded && "line-clamp-2")}>
+                  {item.place.description}
+                </p>
+              </AnimatePresence>
+              {item.place.description.length > 90 && (
+                <button
+                  onClick={() => setExpanded(!expanded)}
+                  className="flex items-center gap-0.5 text-[10px] text-primary/40 hover:text-primary/80 mt-0.5 transition-colors"
+                >
+                  {expanded ? <><ChevronUp className="h-2.5 w-2.5" />less</> : <><ChevronDown className="h-2.5 w-2.5" />more</>}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Pills row */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Category */}
+            <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize", catColors.bg, catColors.text)}>
+              {item.place.category}
+            </span>
+
+            {/* Status — clickable */}
+            <button
+              onClick={() => onStatusChange?.(item.id, NEXT_STATUS[item.status] || "scheduled")}
+              className={cn("flex items-center gap-1 text-[10px] font-medium transition-colors", statusCfg.textClass)}
+              title="Click to advance status"
+            >
+              <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusCfg.dotClass)} />
+              {statusCfg.label}
+            </button>
+
+            {/* Duration */}
+            {item.duration_minutes > 0 && (
+              <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground/60">
+                <Clock className="h-2.5 w-2.5 shrink-0" />
+                {durationH > 0 ? `${durationH}h` : ""}{durationM > 0 ? ` ${durationM}m` : ""}
+              </span>
+            )}
+
+            {/* Price */}
+            {cost > 0 ? (
+              <span className="flex items-center gap-1">
+                <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground/40">
+                  {priceInfo.icon}
+                </span>
+                <span className="text-[11px] font-bold" style={{ color: dayColor }}>
+                  {symbol}{Math.round(convertFromUsd(cost)).toLocaleString()}
+                </span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <Sparkles className="h-2.5 w-2.5" />
+                Free
+              </span>
+            )}
+
+            {/* Rating inline */}
+            {rating > 0 && (
+              <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground/60">
+                <Star className="h-2.5 w-2.5 text-amber-400 fill-amber-400" />
+                {rating.toFixed(1)}
+              </span>
+            )}
+          </div>
+
+          {/* AI score bar */}
+          {aiScore > 0 && (
+            <div className="mt-2.5 flex items-center gap-2">
+              <div className="flex items-center gap-1 shrink-0">
+                <TrendingUp className="h-2.5 w-2.5 text-muted-foreground/40" />
+                <span className="text-[9px] text-muted-foreground/50 font-medium">AI Score</span>
+              </div>
+              <div className="flex-1 h-1 rounded-full bg-muted/60 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-1000"
+                  style={{
+                    width: `${Math.min(100, (aiScore / 100) * 100)}%`,
+                    background: `linear-gradient(90deg, ${dayColor}99, ${dayColor})`,
+                  }}
+                />
+              </div>
+              <span className="text-[10px] font-bold shrink-0" style={{ color: dayColor }}>
+                {Math.round(aiScore)}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     </motion.div>
   );

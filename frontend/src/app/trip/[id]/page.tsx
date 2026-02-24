@@ -478,7 +478,7 @@ export default function TripDetailPage() {
                   )}
 
                   {allItems.length > 0 ? (
-                    <div className="lg:grid lg:grid-cols-[1fr_380px] lg:gap-8">
+                    <div className="lg:grid lg:grid-cols-[1fr_300px] lg:gap-6">
                       {/* Timeline column */}
                       <div>
                         <ItineraryTimeline
