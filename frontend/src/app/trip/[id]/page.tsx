@@ -445,7 +445,7 @@ export default function TripDetailPage() {
 
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Main content */}
-            <div className="lg:col-span-2">
+            <div className={activeTab === "itinerary" ? "lg:col-span-3" : "lg:col-span-2"}>
               {activeTab === "itinerary" && (
                 <>
                   {/* Day filter */}
@@ -478,7 +478,7 @@ export default function TripDetailPage() {
                   )}
 
                   {allItems.length > 0 ? (
-                    <div className="lg:grid lg:grid-cols-[1fr_420px] lg:gap-5">
+                    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_500px] lg:gap-5">
                       {/* Timeline column */}
                       <div>
                         <ItineraryTimeline
