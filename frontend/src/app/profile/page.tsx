@@ -372,7 +372,7 @@ export default function ProfilePage() {
 
                                   {/* CTA */}
                                   <Link
-                                    href={`/trip/${dream.id}`}
+                                    href={`/dream/${dream.id}`}
                                     className={cn(
                                       "inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200",
                                       isDone
