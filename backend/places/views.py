@@ -70,10 +70,11 @@ class DestinationCitiesView(APIView):
     def get(self, request):
         q = request.query_params.get('q', '').strip()
         from django.db.models import Count, Avg, Q
+        valid_coord_q = Q(latitude__isnull=False) & Q(longitude__isnull=False) & ~Q(latitude=0) & ~Q(longitude=0)
         qs = Place.objects.values('city', 'country').annotate(
             place_count=Count('id'),
-            lat=Avg('latitude'),
-            lng=Avg('longitude'),
+            lat=Avg('latitude', filter=valid_coord_q),
+            lng=Avg('longitude', filter=valid_coord_q),
         ).order_by('-place_count')
 
         if q:

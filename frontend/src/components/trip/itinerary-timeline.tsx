@@ -121,23 +121,34 @@ export function ItineraryTimeline({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: dayIdx * 0.1 }}
+            className="rounded-2xl border border-border/60 bg-card/40 p-4 sm:p-5"
           >
             {/* Day header */}
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Calendar className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-foreground text-lg">Day {day}</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {dayItems.length} activities planned
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-foreground text-lg">Day {day}</h3>
-                <p className="text-xs text-muted-foreground">
-                  {dayItems.length} activities &middot; {symbol}{Math.round(convertFromUsd(totalCost)).toLocaleString()}{" "}
-                  &middot; {Math.round(totalDuration / 60)}h {totalDuration % 60}m
-                </p>
+
+              <div className="flex items-center gap-2 text-xs">
+                <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
+                  {symbol}{Math.round(convertFromUsd(totalCost)).toLocaleString()}
+                </span>
+                <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
+                  {Math.round(totalDuration / 60)}h {totalDuration % 60}m
+                </span>
               </div>
             </div>
 
             {/* Timeline */}
-            <div className="relative ml-5 pl-6 border-l-2 border-border space-y-3">
+            <div className="relative ml-4 pl-6 border-l-2 border-border/80 space-y-3">
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}

@@ -87,6 +87,7 @@ export default function TripDetailPage() {
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [activeUsers, setActiveUsers] = useState<{ username: string; id: string }[]>([]);
+  const [heroImage, setHeroImage] = useState<string | null>(null);
   const { convertFromUsd, symbol } = useCurrency();
 
   // Determine if trip is happening today
@@ -122,6 +123,13 @@ export default function TripDetailPage() {
       // Fetch weather for this city
       if (tripData.destination_city) {
         api.getWeather(tripData.destination_city).then(setWeather).catch(() => {});
+        api
+          .getUnsplashPhotos({ city: tripData.destination_city, count: 1 })
+          .then((res) => {
+            const first = res.photos?.[0];
+            setHeroImage(first?.url_regular || first?.url_small || null);
+          })
+          .catch(() => setHeroImage(null));
       }
     });
   }, [tripId]);
@@ -244,9 +252,20 @@ export default function TripDetailPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-card p-6 sm:p-8 mb-8"
+            className="glass-card relative overflow-hidden p-6 sm:p-8 mb-8"
           >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {heroImage && (
+              <>
+                <img
+                  src={heroImage}
+                  alt={`${trip.destination_city} hero`}
+                  className="absolute inset-0 h-full w-full object-cover opacity-20"
+                />
+                <div className="absolute inset-0 bg-gradient-to-br from-background/95 via-background/85 to-background/95" />
+              </>
+            )}
+
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-3 mb-2">
                   <h1 className="text-2xl sm:text-3xl font-bold text-foreground">

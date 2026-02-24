@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, MapPin, X, Globe, Star, Loader2 } from "lucide-react";
 import { searchCities, REGIONS, WORLD_CITIES, type WorldCity } from "@/data/world-cities";
 import { api } from "@/lib/api";
+import { haversineDistance } from "@/lib/mapbox";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
@@ -204,10 +205,34 @@ export function CitySearch({ value, onChange, placeholder = "Search any city wor
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const handleSelect = (city: WorldCity) => {
+  const handleSelect = async (city: WorldCity) => {
+    let selected = city;
+
+    if (MAPBOX_TOKEN) {
+      try {
+        const precise = await searchMapboxCities(`${city.city}, ${city.country}`);
+        const best = precise.find((r) => r.city.toLowerCase() === city.city.toLowerCase()) || precise[0];
+        if (best) {
+          const invalidStored = !city.lat || !city.lng || (city.lat === 0 && city.lng === 0);
+          const driftKm = haversineDistance(city.lat, city.lng, best.lat, best.lng);
+          if (invalidStored || driftKm > 300) {
+            selected = {
+              ...city,
+              lat: best.lat,
+              lng: best.lng,
+              country: best.country || city.country,
+              description: best.description || city.description,
+            };
+          }
+        }
+      } catch {
+        // Keep original city data if geocoding refinement fails.
+      }
+    }
+
     setQuery("");
     setIsOpen(false);
-    onChange(city);
+    onChange(selected);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

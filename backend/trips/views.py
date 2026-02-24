@@ -1174,14 +1174,12 @@ Estimate a realistic total trip budget in {currency} and break it down."""
             if not isinstance(budget, (int, float)) or budget <= 0:
                 raise ValueError('Invalid budget value')
 
-            # Normalise allocation — ensure amounts sum to budget
-            allocation = result.get('allocation', [])
-            alloc_sum = sum(a.get('amount', 0) for a in allocation)
-            if allocation and alloc_sum > 0 and abs(alloc_sum - budget) > 1:
-                factor = budget / alloc_sum
-                for a in allocation:
-                    a['amount'] = round(a['amount'] * factor)
-                    a['percentage'] = round(a['amount'] / budget * 100)
+            allocation = self._normalize_allocation(
+                allocation=result.get('allocation', []),
+                budget=round(float(budget)),
+                preference=preference,
+                city=destination_city,
+            )
 
             return Response({
                 'budget': round(budget),
@@ -1203,6 +1201,110 @@ Estimate a realistic total trip budget in {currency} and break it down."""
                 destination_city, destination_country, duration_days,
                 pace, stay_type, group_size, currency, preference, transport_mode
             ))
+
+    @staticmethod
+    def _to_number(value, default=0.0):
+        """Parse numeric values from ints/floats/strings like '₹12,000'."""
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            import re
+            cleaned = re.sub(r'[^0-9.\-]', '', value)
+            if cleaned in ('', '-', '.', '-.'):
+                return float(default)
+            try:
+                return float(cleaned)
+            except ValueError:
+                return float(default)
+        return float(default)
+
+    @classmethod
+    def _normalize_allocation(cls, allocation, budget: int, preference: str, city: str):
+        """Ensure allocation is meaningful, non-zero, and sums to budget."""
+        expected_categories = [
+            'Accommodation',
+            'Food & Dining',
+            'Activities & Sightseeing',
+            'Local Transport',
+            'Shopping & Misc',
+        ]
+
+        # Preference-based default split used if model output is incomplete/zero.
+        default_split = {
+            'low cost': {'Accommodation': 32, 'Food & Dining': 24, 'Activities & Sightseeing': 18, 'Local Transport': 14, 'Shopping & Misc': 12},
+            'balanced': {'Accommodation': 38, 'Food & Dining': 24, 'Activities & Sightseeing': 18, 'Local Transport': 12, 'Shopping & Misc': 8},
+            'premium': {'Accommodation': 45, 'Food & Dining': 22, 'Activities & Sightseeing': 20, 'Local Transport': 8, 'Shopping & Misc': 5},
+        }.get(preference, {'Accommodation': 38, 'Food & Dining': 24, 'Activities & Sightseeing': 18, 'Local Transport': 12, 'Shopping & Misc': 8})
+
+        normalized = []
+        allocation = allocation if isinstance(allocation, list) else []
+
+        # Try to map incoming categories by normalized name.
+        def norm_name(name: str):
+            return (name or '').strip().lower()
+
+        by_name = {norm_name(item.get('category', '')): item for item in allocation if isinstance(item, dict)}
+
+        for category in expected_categories:
+            key = norm_name(category)
+            source = by_name.get(key)
+            if source is None:
+                # Fuzzy fallback matching
+                source = next(
+                    (item for item in allocation
+                     if isinstance(item, dict) and key in norm_name(item.get('category', ''))),
+                    None,
+                )
+
+            amount = cls._to_number(source.get('amount', 0) if source else 0, 0)
+            percentage = cls._to_number(source.get('percentage', 0) if source else 0, 0)
+
+            # If amount is missing but percentage is present, derive amount.
+            if amount <= 0 and percentage > 0 and budget > 0:
+                amount = round((percentage / 100.0) * budget)
+
+            reason = (source.get('reason', '') if source else '').strip()
+            if not reason:
+                reason = f'Planned for {category.lower()} in {city}'
+
+            normalized.append({
+                'category': category,
+                'amount': max(0, round(amount)),
+                'percentage': max(0, round(percentage)),
+                'reason': reason,
+            })
+
+        amount_sum = sum(item['amount'] for item in normalized)
+
+        # If model returned zero/invalid allocation, rebuild from preference defaults.
+        if amount_sum <= 0 and budget > 0:
+            normalized = []
+            for category in expected_categories:
+                pct = default_split[category]
+                amt = round((pct / 100.0) * budget)
+                normalized.append({
+                    'category': category,
+                    'amount': amt,
+                    'percentage': pct,
+                    'reason': f'Balanced for {category.lower()} based on {preference} preference',
+                })
+            amount_sum = sum(item['amount'] for item in normalized)
+
+        # Force exact total = budget.
+        if budget > 0 and amount_sum > 0 and amount_sum != budget:
+            factor = budget / amount_sum
+            for item in normalized:
+                item['amount'] = max(0, round(item['amount'] * factor))
+            diff = budget - sum(item['amount'] for item in normalized)
+            if diff != 0:
+                normalized[0]['amount'] = max(0, normalized[0]['amount'] + diff)
+
+        # Recompute percentages from final amounts.
+        final_sum = sum(item['amount'] for item in normalized)
+        for item in normalized:
+            item['percentage'] = round((item['amount'] / final_sum) * 100) if final_sum else 0
+
+        return normalized
 
     @staticmethod
     def _fallback_estimate(city, country, days, pace, stay_type, group_size, currency, preference, transport_mode='any'):

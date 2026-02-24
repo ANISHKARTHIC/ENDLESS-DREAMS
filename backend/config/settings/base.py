@@ -178,6 +178,7 @@ ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '') or OPENAI_API_KEY  #
 GOOGLE_PLACES_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY', '')
 AMADEUS_API_KEY = os.environ.get('AMADEUS_API_KEY', '')
 AMADEUS_API_SECRET = os.environ.get('AMADEUS_API_SECRET', '')
+AMADEUS_STRICT_ONLY = os.environ.get('AMADEUS_STRICT_ONLY', 'false').lower() == 'true'
 EXCHANGE_RATE_API_KEY = os.environ.get('EXCHANGE_RATE_API_KEY', '')
 
 # Train search API (optional; if missing, train service falls back to generated data)

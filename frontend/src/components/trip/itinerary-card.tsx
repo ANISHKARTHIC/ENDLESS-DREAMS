@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { cn, formatTime, getCategoryColor } from "@/lib/utils";
 import { CategoryIcon } from "@/components/ui/category-icon";
 import { Badge } from "@/components/ui/badge";
+import { api } from "@/lib/api";
 import {
   Clock,
   Lock,
@@ -24,6 +25,14 @@ interface ItineraryCardProps {
   dragHandleProps?: Record<string, unknown>;
 }
 
+type PlacePhoto = {
+  url: string;
+  photographer?: string;
+  photographerUrl?: string;
+};
+
+const placePhotoCache: Record<string, PlacePhoto | null> = {};
+
 export function ItineraryCard({
   item,
   onToggleLock,
@@ -32,6 +41,57 @@ export function ItineraryCard({
   dragHandleProps,
 }: ItineraryCardProps) {
   const { convertFromUsd, symbol } = useCurrency();
+  const cacheKey = useMemo(
+    () => `${item.place.name.toLowerCase()}|${item.place.city.toLowerCase()}`,
+    [item.place.name, item.place.city]
+  );
+  const [photo, setPhoto] = useState<PlacePhoto | null>(
+    item.place.image_url ? { url: item.place.image_url } : placePhotoCache[cacheKey] ?? null
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (item.place.image_url) {
+      const direct = { url: item.place.image_url };
+      placePhotoCache[cacheKey] = direct;
+      setPhoto(direct);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    if (cacheKey in placePhotoCache) {
+      setPhoto(placePhotoCache[cacheKey]);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    api
+      .getUnsplashPhotos({ place: item.place.name, city: item.place.city, count: 1 })
+      .then((result) => {
+        const first = result.photos?.[0];
+        const resolved: PlacePhoto | null = first
+          ? {
+              url: first.url_regular || first.url_small || first.url_thumb || first.url_full,
+              photographer: first.photographer,
+              photographerUrl: first.photographer_url,
+            }
+          : null;
+        placePhotoCache[cacheKey] = resolved;
+        if (isMounted) setPhoto(resolved);
+      })
+      .catch(() => {
+        placePhotoCache[cacheKey] = null;
+        if (isMounted) setPhoto(null);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [cacheKey, item.place.city, item.place.image_url, item.place.name]);
+
   const statusColors: Record<string, string> = {
     scheduled: "default",
     in_progress: "info",
@@ -76,6 +136,34 @@ export function ItineraryCard({
 
         {/* Content */}
         <div className="flex-1 min-w-0">
+          {photo?.url && (
+            <div className="relative mb-3 h-36 overflow-hidden rounded-xl border border-border/60">
+              <img
+                src={photo.url}
+                alt={item.place.name}
+                className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
+              <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-2">
+                <span className="rounded-full bg-black/45 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-sm">
+                  {item.place.city}
+                </span>
+                {photo.photographer && photo.photographerUrl && (
+                  <a
+                    href={photo.photographerUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="truncate text-[10px] text-white/80 hover:text-white"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {photo.photographer}
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">

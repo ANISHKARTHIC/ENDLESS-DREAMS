@@ -6,12 +6,24 @@ Fallback source: LLM-generated realistic options if API is unavailable.
 """
 import json
 import logging
+import re
 from datetime import datetime, timedelta
 from decimal import Decimal
 from django.conf import settings
 from .base import BaseService
 
 logger = logging.getLogger(__name__)
+
+COMMON_STATIONS = {
+    'Munnar': 'Aluva Junction',
+    'Kochi': 'Ernakulam Junction',
+    'Coimbatore': 'Coimbatore Junction',
+    'Chennai': 'Chennai Central',
+    'Bangalore': 'KSR Bengaluru',
+    'Delhi': 'New Delhi',
+    'Mumbai': 'Mumbai CSMT',
+    'Kolkata': 'Howrah Junction',
+}
 
 TRAIN_SEARCH_PROMPT = """You are a travel data API. Given two cities and a date, return realistic train options that actually exist or could realistically exist on that route.
 
@@ -242,6 +254,34 @@ class TrainsService(BaseService):
             self._llm = LLMLayer()
         return self._llm
 
+    @staticmethod
+    def _extract_json_array(raw: str):
+        """Extract first valid JSON array from possibly noisy LLM output."""
+        text = (raw or '').strip()
+        if not text:
+            return None
+
+        if text.startswith('```'):
+            text = text.split('\n', 1)[1] if '\n' in text else text[3:]
+            text = text.rsplit('```', 1)[0].strip()
+
+        try:
+            parsed = json.loads(text)
+            return parsed if isinstance(parsed, list) else None
+        except Exception:
+            pass
+
+        match = re.search(r'\[.*\]', text, flags=re.DOTALL)
+        if not match:
+            return None
+
+        candidate = match.group(0).strip()
+        try:
+            parsed = json.loads(candidate)
+            return parsed if isinstance(parsed, list) else None
+        except Exception:
+            return None
+
     def search(self, departure: str, arrival: str, date) -> list:
         """Search train options using real-time API first, fallback to LLM."""
         if isinstance(date, str):
@@ -268,28 +308,31 @@ class TrainsService(BaseService):
 
             raw = llm._call_llm(system_prompt, user_prompt, max_tokens=1500)
 
-            # Parse JSON from response
-            raw = raw.strip()
-            if raw.startswith('```'):
-                raw = raw.split('\n', 1)[1] if '\n' in raw else raw[3:]
-                raw = raw.rsplit('```', 1)[0]
-            raw = raw.strip()
-
-            trains_data = json.loads(raw)
+            trains_data = self._extract_json_array(raw)
             if not isinstance(trains_data, list):
-                logger.warning("LLM returned non-list for trains")
-                return []
+                logger.warning("LLM returned non-JSON array output for trains")
+                return self._heuristic_train_options(departure, arrival, date)
 
-            return self._format_options(trains_data, departure, arrival, date)
+            options = self._format_options(trains_data, departure, arrival, date)
+            return options if options else self._heuristic_train_options(departure, arrival, date)
 
-        except (json.JSONDecodeError, Exception) as e:
-            logger.error(f"Train search LLM error: {e}")
-            return []
+        except Exception as e:
+            logger.warning(f"Train search LLM fallback error: {e}")
+            return self._heuristic_train_options(departure, arrival, date)
 
     def _format_options(self, trains_data: list, departure: str, arrival: str, date) -> list:
         """Convert LLM response into TravelOption-compatible dicts."""
         base_dt = datetime.combine(date, datetime.min.time())
         options = []
+
+        def _normalize_station(city_name: str, station_name: str, is_departure: bool) -> str:
+            station = (station_name or '').strip()
+            city_lower = city_name.lower()
+            if station and city_lower in station.lower():
+                return station
+            if city_name in COMMON_STATIONS:
+                return COMMON_STATIONS[city_name]
+            return f'{city_name} Junction'
 
         for t in trains_data:
             try:
@@ -306,9 +349,17 @@ class TrainsService(BaseService):
                     'provider_name': t.get('provider_name', 'Railway'),
                     'route_number': str(t.get('route_number', '')),
                     'departure_city': departure,
-                    'departure_station': t.get('departure_station', f'{departure} Station'),
+                    'departure_station': _normalize_station(
+                        departure,
+                        t.get('departure_station', ''),
+                        is_departure=True,
+                    ),
                     'arrival_city': arrival,
-                    'arrival_station': t.get('arrival_station', f'{arrival} Station'),
+                    'arrival_station': _normalize_station(
+                        arrival,
+                        t.get('arrival_station', ''),
+                        is_departure=False,
+                    ),
                     'departure_time': dep_time,
                     'arrival_time': arr_time,
                     'duration_minutes': dur,
@@ -326,4 +377,46 @@ class TrainsService(BaseService):
                 logger.warning(f"Skipping malformed train option: {e}")
                 continue
 
+        return options
+
+    def _heuristic_train_options(self, departure: str, arrival: str, date) -> list:
+        """Reliable fallback train options when API/LLM parsing fails."""
+        from random import randint
+
+        base_dt = datetime.combine(date, datetime.min.time())
+        station_from = COMMON_STATIONS.get(departure, f'{departure} Junction')
+        station_to = COMMON_STATIONS.get(arrival, f'{arrival} Junction')
+
+        # Approximate intra-region durations/prices for sensible defaults
+        durations = [randint(150, 260), randint(220, 340)]
+        prices = [randint(650, 1200), randint(1200, 2600)]
+        classes = ['Sleeper', 'AC Chair Car']
+        providers = ['Indian Railways', 'Regional Express']
+
+        options = []
+        for idx in range(2):
+            dep_time = base_dt + timedelta(hours=6 + idx * 5, minutes=idx * 15)
+            duration = durations[idx]
+            price_inr = Decimal(str(prices[idx]))
+            options.append({
+                'transport_type': 'train',
+                'provider_name': providers[idx],
+                'route_number': f'TR{randint(1000, 9999)}',
+                'departure_city': departure,
+                'departure_station': station_from,
+                'arrival_city': arrival,
+                'arrival_station': station_to,
+                'departure_time': dep_time,
+                'arrival_time': dep_time + timedelta(minutes=duration),
+                'duration_minutes': duration,
+                'price_inr': price_inr,
+                'price_usd': round(price_inr / Decimal('83.5'), 2),
+                'stops': randint(0, 3),
+                'stop_details': [],
+                'cabin_class': classes[idx],
+                'carbon_kg': round(duration * 0.02, 1),
+                'delay_risk': 0.12 + idx * 0.04,
+                'amenities': ['Restroom', 'Charging Port'],
+                'is_mock': True,
+            })
         return options

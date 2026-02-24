@@ -48,6 +48,7 @@ export const WORLD_CITIES: WorldCity[] = [
   { city: "Udaipur", country: "India", countryCode: "IN", emoji: "🇮🇳", lat: 24.5854, lng: 73.7125, description: "City of Lakes", region: "Asia" },
   { city: "Hyderabad", country: "India", countryCode: "IN", emoji: "🇮🇳", lat: 17.385, lng: 78.4867, description: "Pearl City", region: "Asia" },
   { city: "Kochi", country: "India", countryCode: "IN", emoji: "🇮🇳", lat: 9.9312, lng: 76.2673, description: "Queen of Arabian Sea", region: "Asia" },
+  { city: "Munnar", country: "India", countryCode: "IN", emoji: "🇮🇳", lat: 10.0889, lng: 77.0595, description: "Tea Hills", region: "Asia" },
 
   // Europe
   { city: "Paris", country: "France", countryCode: "FR", emoji: "🇫🇷", lat: 48.8566, lng: 2.3522, description: "City of Lights", region: "Europe", popular: true },

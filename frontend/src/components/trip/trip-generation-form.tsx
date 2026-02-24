@@ -866,6 +866,10 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
             options={travelOptions}
             departureCity={form.departure_city || ""}
             arrivalCity={form.destination_city}
+            departureLat={depCity?.lat}
+            departureLng={depCity?.lng}
+            arrivalLat={destCity?.lat}
+            arrivalLng={destCity?.lng}
             isLoading={travelLoading}
             onSelect={handleTravelSelect}
             onSkip={handleTravelSkip}
