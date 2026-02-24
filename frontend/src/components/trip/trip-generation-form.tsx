@@ -258,6 +258,125 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
     onSubmit(data);
   };
 
+  // Generate realistic fallback travel options when Amadeus returns nothing
+  const generateFallbackOptions = (depC: WorldCity, destC: WorldCity, travelDate: string): TravelOption[] => {
+    const R = 6371;
+    const dLat = ((destC.lat - depC.lat) * Math.PI) / 180;
+    const dLng = ((destC.lng - depC.lng) * Math.PI) / 180;
+    const la1 = (depC.lat * Math.PI) / 180;
+    const la2 = (destC.lat * Math.PI) / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
+    const distKm = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+
+    const baseDate = new Date(travelDate + "T00:00:00");
+    const makeISO = (h: number, m: number) => {
+      const d = new Date(baseDate);
+      d.setHours(h, m, 0, 0);
+      return d.toISOString();
+    };
+    const addMin = (iso: string, min: number) =>
+      new Date(new Date(iso).getTime() + min * 60000).toISOString();
+
+    const ts = Date.now();
+    const dep = form.departure_city;
+    const arr = form.destination_city;
+    const options: TravelOption[] = [];
+
+    // ── Bus (always available) ──────────────────────────────────────────────
+    const busDur = Math.max(30, Math.round((distKm / 45) * 60));
+    const busPriceExpress = Math.max(200, Math.round(distKm * 7));
+    options.push({
+      id: `fb-bus-exp-${ts}`, transport_type: "bus",
+      provider_name: "Express Bus", route_number: "EXP-1",
+      departure_city: dep, departure_station: `${dep} Bus Terminal`,
+      arrival_city: arr, arrival_station: `${arr} Bus Terminal`,
+      departure_time: makeISO(7, 0), arrival_time: addMin(makeISO(7, 0), busDur),
+      duration_minutes: busDur, price_inr: busPriceExpress,
+      price_usd: Math.round(busPriceExpress * 0.012),
+      stops: 0, stop_details: [], cabin_class: "AC Express",
+      carbon_kg: Math.round(distKm * 0.089 * 10) / 10,
+      delay_risk: 0.2, amenities: ["AC", "Reserved Seating"],
+      is_direct: true, is_mock: true,
+      badges: ["Recommended", "Eco-friendly"],
+      created_at: new Date().toISOString(),
+    });
+    options.push({
+      id: `fb-bus-std-${ts}`, transport_type: "bus",
+      provider_name: depC.country === "India" ? "State Bus (TNSTC/KSRTC)" : "Standard Bus",
+      route_number: "STD-2",
+      departure_city: dep, departure_station: `${dep} Bus Stand`,
+      arrival_city: arr, arrival_station: `${arr} Bus Stand`,
+      departure_time: makeISO(9, 30), arrival_time: addMin(makeISO(9, 30), Math.round(busDur * 1.25)),
+      duration_minutes: Math.round(busDur * 1.25),
+      price_inr: Math.round(busPriceExpress * 0.55),
+      price_usd: Math.round(busPriceExpress * 0.55 * 0.012),
+      stops: 2, stop_details: [], cabin_class: "Non-AC",
+      carbon_kg: Math.round(distKm * 0.089 * 10) / 10,
+      delay_risk: 0.3, amenities: ["Seating"],
+      is_direct: false, is_mock: true, badges: ["Budget"],
+      created_at: new Date().toISOString(),
+    });
+
+    // ── Train (distance > 30 km) ────────────────────────────────────────────
+    if (distKm > 30) {
+      const trainDur = Math.max(40, Math.round((distKm / 65) * 60));
+      const trainBase = Math.max(120, Math.round(distKm * 3.2));
+      options.push({
+        id: `fb-train-ac-${ts}`, transport_type: "train",
+        provider_name: depC.country === "India" ? "Indian Railways" : "National Rail",
+        route_number: "SF-EXP",
+        departure_city: dep, departure_station: `${dep} Railway Station`,
+        arrival_city: arr, arrival_station: `${arr} Railway Station`,
+        departure_time: makeISO(6, 0), arrival_time: addMin(makeISO(6, 0), trainDur),
+        duration_minutes: trainDur,
+        price_inr: trainBase * 2, price_usd: Math.round(trainBase * 2 * 0.012),
+        stops: 1, stop_details: [], cabin_class: "2nd AC",
+        carbon_kg: Math.round(distKm * 0.041 * 10) / 10,
+        delay_risk: 0.25, amenities: ["AC", "Meals", "Bedroll"],
+        is_direct: false, is_mock: true, badges: ["Comfortable"],
+        created_at: new Date().toISOString(),
+      });
+      options.push({
+        id: `fb-train-sl-${ts}`, transport_type: "train",
+        provider_name: depC.country === "India" ? "Indian Railways" : "National Rail",
+        route_number: "SL-EXP",
+        departure_city: dep, departure_station: `${dep} Railway Station`,
+        arrival_city: arr, arrival_station: `${arr} Railway Station`,
+        departure_time: makeISO(22, 0), arrival_time: addMin(makeISO(22, 0), Math.round(trainDur * 1.15)),
+        duration_minutes: Math.round(trainDur * 1.15),
+        price_inr: trainBase, price_usd: Math.round(trainBase * 0.012),
+        stops: 3, stop_details: [], cabin_class: "Sleeper",
+        carbon_kg: Math.round(distKm * 0.041 * 10) / 10,
+        delay_risk: 0.3, amenities: ["Bedroll"],
+        is_direct: false, is_mock: true, badges: ["Budget", "Night Train"],
+        created_at: new Date().toISOString(),
+      });
+    }
+
+    // ── Flight (distance > 300 km) ──────────────────────────────────────────
+    if (distKm > 300) {
+      const flightDur = Math.round((distKm / 700) * 60) + 180;
+      const flightPrice = Math.max(2800, Math.round(distKm * 4.5 + 1500));
+      options.push({
+        id: `fb-flight-1-${ts}`, transport_type: "flight",
+        provider_name: depC.country === "India" ? "IndiGo" : "Regional Airlines",
+        route_number: depC.country === "India" ? `6E-${Math.floor(Math.random() * 900) + 100}` : `FL-${Math.floor(Math.random() * 900) + 100}`,
+        departure_city: dep, departure_station: `${dep} Airport`,
+        arrival_city: arr, arrival_station: `${arr} Airport`,
+        departure_time: makeISO(8, 0), arrival_time: addMin(makeISO(8, 0), flightDur),
+        duration_minutes: flightDur,
+        price_inr: flightPrice, price_usd: Math.round(flightPrice * 0.012),
+        stops: 0, stop_details: [], cabin_class: "Economy",
+        carbon_kg: Math.round(distKm * 0.255 * 10) / 10,
+        delay_risk: 0.15, amenities: ["Carry-on", "Meals (paid)"],
+        is_direct: true, is_mock: true, badges: ["Fastest"],
+        created_at: new Date().toISOString(),
+      });
+    }
+
+    return options;
+  };
+
   // Search travel when entering step 1 (travel)
   const searchTravel = async () => {
     if (!form.departure_city || !form.destination_city || !form.start_date) return;
@@ -268,10 +387,24 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
         arrival_city: form.destination_city,
         travel_date: form.start_date,
       });
-      setTravelOptions(result.options || []);
+      const liveOptions = result.options || [];
+      if (liveOptions.length > 0) {
+        setTravelOptions(liveOptions);
+      } else {
+        // Amadeus returned nothing (common for Indian domestic/short routes)
+        // Fall back to smart estimated options based on coordinates + distance
+        const fallback = selectedDepCity && selectedDestCity
+          ? generateFallbackOptions(selectedDepCity, selectedDestCity, form.start_date)
+          : [];
+        setTravelOptions(fallback);
+      }
     } catch (err) {
       console.error("Travel search failed:", err);
-      setTravelOptions([]);
+      // Still show fallback even on API error
+      const fallback = selectedDepCity && selectedDestCity
+        ? generateFallbackOptions(selectedDepCity, selectedDestCity, form.start_date)
+        : [];
+      setTravelOptions(fallback);
     } finally {
       setTravelLoading(false);
     }
