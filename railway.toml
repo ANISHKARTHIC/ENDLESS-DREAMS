@@ -3,7 +3,7 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.railway"
 
 [deploy]
-startCommand = "sh -c \"python manage.py migrate --noinput && daphne -b 0.0.0.0 -p ${PORT:-8000} config.asgi:application\""
+startCommand = "sh -c \"daphne -b 0.0.0.0 -p ${PORT:-8000} config.asgi:application\""
 healthcheckPath = "/healthz/"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
