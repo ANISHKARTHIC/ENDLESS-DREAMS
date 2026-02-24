@@ -11,6 +11,7 @@ ALLOWED_HOSTS = [
     *_allowed_hosts_env,
     *([_railway_public] if _railway_public else []),
     '.up.railway.app',
+    'healthcheck.railway.app',
     'localhost',
     '127.0.0.1',
 ]
