@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { ItineraryCard } from "./itinerary-card";
 import type { ItineraryItem } from "@/types";
 import { motion } from "framer-motion";
@@ -29,6 +29,7 @@ interface ItineraryTimelineProps {
   onToggleLock?: (itemId: string) => void;
   onReorder?: (items: { item_id: string; day_number: number; order: number }[]) => void;
   onStatusChange?: (itemId: string, status: string) => void;
+  onActiveItemChange?: (itemId: string | null, dayNumber: number | null) => void;
 }
 
 function SortableItem({
@@ -74,8 +75,35 @@ export function ItineraryTimeline({
   onToggleLock,
   onReorder,
   onStatusChange,
+  onActiveItemChange,
 }: ItineraryTimelineProps) {
   const { convertFromUsd, symbol } = useCurrency();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Track which itinerary card is in viewport and notify parent
+  useEffect(() => {
+    if (!onActiveItemChange) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting);
+        if (visible.length === 0) return;
+        visible.sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        const target = visible[0].target as HTMLElement;
+        const itemId = target.dataset.itemId ?? null;
+        const dayNumber = target.dataset.dayNumber ? Number(target.dataset.dayNumber) : null;
+        onActiveItemChange(itemId, dayNumber);
+      },
+      { threshold: [0.3, 0.6], rootMargin: "-10% 0px -35% 0px" }
+    );
+
+    const cards = container.querySelectorAll<HTMLElement>("[data-item-id]");
+    cards.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [onActiveItemChange, items, dayGroups]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -109,7 +137,7 @@ export function ItineraryTimeline({
   };
 
   return (
-    <div className="space-y-8">
+    <div ref={containerRef} className="space-y-8">
       {days.map((day, dayIdx) => {
         const dayItems = dayGroups[day.toString()] || [];
         const totalCost = dayItems.reduce((s, i) => s + Number(i.estimated_cost_usd), 0);
@@ -159,7 +187,7 @@ export function ItineraryTimeline({
                   strategy={verticalListSortingStrategy}
                 >
                   {dayItems.map((item) => (
-                    <div key={item.id} className="relative">
+                      <div key={item.id} className="relative" data-item-id={item.id} data-day-number={item.day_number}>
                       {/* Timeline dot */}
                       <div className="absolute -left-[33px] top-5 h-4 w-4 rounded-full bg-background border-2 border-primary flex items-center justify-center">
                         <div className="h-1.5 w-1.5 rounded-full bg-primary" />

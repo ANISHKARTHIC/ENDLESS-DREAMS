@@ -88,6 +88,7 @@ export default function TripDetailPage() {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [activeUsers, setActiveUsers] = useState<{ username: string; id: string }[]>([]);
   const [heroImage, setHeroImage] = useState<string | null>(null);
+  const [activeItineraryItemId, setActiveItineraryItemId] = useState<string | null>(null);
   const { convertFromUsd, symbol } = useCurrency();
 
   // Determine if trip is happening today
@@ -477,17 +478,35 @@ export default function TripDetailPage() {
                   )}
 
                   {allItems.length > 0 ? (
-                    <ItineraryTimeline
-                      items={allItems}
-                      dayGroups={
-                        selectedDay
-                          ? { [selectedDay]: dayGroups[selectedDay.toString()] || [] }
-                          : dayGroups
-                      }
-                      onToggleLock={handleToggleLock}
-                      onReorder={handleReorder}
-                      onStatusChange={handleStatusChange}
-                    />
+                    <div className="lg:grid lg:grid-cols-[1fr_380px] lg:gap-8">
+                      {/* Timeline column */}
+                      <div>
+                        <ItineraryTimeline
+                          items={allItems}
+                          dayGroups={
+                            selectedDay
+                              ? { [selectedDay]: dayGroups[selectedDay.toString()] || [] }
+                              : dayGroups
+                          }
+                          onToggleLock={handleToggleLock}
+                          onReorder={handleReorder}
+                          onStatusChange={handleStatusChange}
+                          onActiveItemChange={(itemId) => setActiveItineraryItemId(itemId)}
+                        />
+                      </div>
+                      {/* Sticky map column — desktop only */}
+                      <div className="hidden lg:block">
+                        <div className="sticky top-24 h-[calc(100vh-7rem)]">
+                          <TripMap
+                            items={allItems}
+                            selectedDay={selectedDay}
+                            activeItemId={activeItineraryItemId ?? undefined}
+                            onDaySelect={setSelectedDay}
+                            className="h-full rounded-2xl"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   ) : (
                     <div className="glass-card p-12 text-center">
                       <Activity className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
@@ -507,7 +526,7 @@ export default function TripDetailPage() {
                   items={allItems}
                   selectedDay={selectedDay}
                   onDaySelect={setSelectedDay}
-                  className="min-h-[600px]"
+                  className="h-[600px]"
                 />
               )}
 
@@ -540,7 +559,8 @@ export default function TripDetailPage() {
               )}
             </div>
 
-            {/* Sidebar */}
+            {/* Sidebar – hidden on itinerary tab (full-width 2-col layout) */}
+            {activeTab !== "itinerary" && (
             <div className="space-y-6">
               {/* Live Trip Day Banner */}
               {isTripDay && currentDayNumber && (
@@ -724,6 +744,7 @@ export default function TripDetailPage() {
                 </div>
               </motion.div>
             </div>
+            )}
           </div>
         </div>
       </main>

@@ -49,6 +49,7 @@ export function ItineraryCard({
   const [photo, setPhoto] = useState<PlacePhoto | null>(
     item.place.image_url ? { url: item.place.image_url } : placePhotoCache[cacheKey] ?? null
   );
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -114,7 +115,7 @@ export function ItineraryCard({
       )}
     >
       {/* Place photo banner – only shown when image_url is available */}
-      {item.place.image_url && (
+      {(photo?.url || item.place.image_url) && (
         <div className="relative w-full h-28 -mx-4 -mt-4 mb-3 overflow-hidden rounded-t-2xl">
           {imgError ? (
             <div className="w-full h-full bg-muted flex flex-col items-center justify-center gap-1">
@@ -124,7 +125,7 @@ export function ItineraryCard({
           ) : (
             <>
               <img
-                src={item.place.image_url}
+                src={photo?.url || item.place.image_url!}
                 alt={item.place.name}
                 className="w-full h-full object-cover brightness-90 group-hover:brightness-100 group-hover:scale-105 transition-all duration-500"
                 onError={() => setImgError(true)}
@@ -178,34 +179,6 @@ export function ItineraryCard({
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          {photo?.url && (
-            <div className="relative mb-3 h-36 overflow-hidden rounded-xl border border-border/60">
-              <img
-                src={photo.url}
-                alt={item.place.name}
-                className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
-              <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-2">
-                <span className="rounded-full bg-black/45 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-sm">
-                  {item.place.city}
-                </span>
-                {photo.photographer && photo.photographerUrl && (
-                  <a
-                    href={photo.photographerUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="truncate text-[10px] text-white/80 hover:text-white"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {photo.photographer}
-                  </a>
-                )}
-              </div>
-            </div>
-          )}
-
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">
