@@ -26,7 +26,8 @@ RUN SECRET_KEY=build-collect-static-placeholder \
 # Make entrypoint executable
 RUN chmod +x /app/entrypoint.sh
 
-EXPOSE 8000
+# Railway injects PORT=8080; default to 8000 for local runs
+EXPOSE ${PORT:-8000}
 
 # entrypoint.sh runs migrate → seeds currencies → starts Daphne
 ENTRYPOINT ["/app/entrypoint.sh"]

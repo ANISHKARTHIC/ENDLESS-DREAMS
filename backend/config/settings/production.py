@@ -17,26 +17,45 @@ ALLOWED_HOSTS = [
 ]
 
 # ── Database ──────────────────────────────────────────────────────────────────
-# Fly.io attaches Postgres and injects DATABASE_URL automatically.
-# Fall back to individual env vars if DATABASE_URL is not set.
-_db_url = os.environ.get('DATABASE_URL')
+# Railway injects DATABASE_URL. Normalise postgres:// → postgresql:// for
+# dj_database_url, validate the result, and fall back to SQLite if anything
+# looks wrong so Daphne can still start while DB is provisioning.
+_db_url = os.environ.get('DATABASE_URL', '').strip()
+
+# Railway sometimes provides postgres:// which dj_database_url may not recognise
+if _db_url.startswith('postgres://'):
+    _db_url = 'postgresql://' + _db_url[len('postgres://'):]
+
 if _db_url:
-    DATABASES = {
-        'default': dj_database_url.parse(
+    try:
+        _parsed = dj_database_url.parse(
             _db_url,
             conn_max_age=600,
+            conn_health_checks=True,
             ssl_require='sslmode' not in _db_url,
         )
-    }
-else:
-    # Railway safety fallback when DATABASE_URL is not attached yet and DB_NAME is blank.
-    if not str(os.environ.get('DB_NAME', '')).strip():
+        # Only use parsed config if it contains a valid database name
+        if _parsed.get('NAME'):
+            DATABASES = {'default': _parsed}
+        else:
+            raise ValueError(f'dj_database_url returned no NAME for URL: {_db_url[:40]}...')
+    except Exception as _db_exc:
+        import warnings
+        warnings.warn(f'DATABASE_URL parse failed ({_db_exc}), falling back to SQLite')
         DATABASES = {
             'default': {
                 'ENGINE': 'django.db.backends.sqlite3',
                 'NAME': BASE_DIR / 'db.sqlite3',
             }
         }
+else:
+    # No DATABASE_URL — use SQLite so the app can at least start
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # ── Redis / Channels ──────────────────────────────────────────────────────────
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
