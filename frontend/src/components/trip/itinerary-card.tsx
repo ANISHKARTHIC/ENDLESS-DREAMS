@@ -19,6 +19,7 @@ import {
   Zap,
   Sparkles,
   ImageOff,
+  ArrowRight,
 } from "lucide-react";
 import type { ItineraryItem } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
@@ -40,7 +41,7 @@ const placePhotoCache: Record<string, PlacePhoto | null> = {};
 export const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   food:        { bg: "bg-orange-100/80 dark:bg-orange-900/30", text: "text-orange-700 dark:text-orange-300", border: "border-orange-200 dark:border-orange-800/40" },
   culture:     { bg: "bg-amber-100/80 dark:bg-amber-900/30",   text: "text-amber-700 dark:text-amber-300",   border: "border-amber-200 dark:border-amber-800/40" },
-  nature:      { bg: "bg-emerald-100/80 dark:bg-emerald-900/30",text:"text-emerald-700 dark:text-emerald-300",border: "border-emerald-200 dark:border-emerald-800/40" },
+  nature:      { bg: "bg-emerald-100/80 dark:bg-emerald-900/30", text: "text-emerald-700 dark:text-emerald-300", border: "border-emerald-200 dark:border-emerald-800/40" },
   adventure:   { bg: "bg-blue-100/80 dark:bg-blue-900/30",     text: "text-blue-700 dark:text-blue-300",     border: "border-blue-200 dark:border-blue-800/40" },
   relaxation:  { bg: "bg-purple-100/80 dark:bg-purple-900/30", text: "text-purple-700 dark:text-purple-300", border: "border-purple-200 dark:border-purple-800/40" },
   shopping:    { bg: "bg-pink-100/80 dark:bg-pink-900/30",     text: "text-pink-700 dark:text-pink-300",     border: "border-pink-200 dark:border-pink-800/40" },
@@ -70,7 +71,6 @@ const NEXT_STATUS: Record<string, string> = {
   replanned:   "scheduled",
 };
 
-// Smart price label based on category
 function getPriceLabel(category: string): { label: string; icon: React.ReactNode } {
   const cat = category.toLowerCase();
   if (["food", "cafe", "restaurant", "dining"].includes(cat))
@@ -135,14 +135,14 @@ export function ItineraryCard({
     return () => { isMounted = false; };
   }, [cacheKey, item.place.city, item.place.image_url, item.place.name]);
 
-  const catKey  = (item.place.category || "default").toLowerCase();
+  const catKey    = (item.place.category || "default").toLowerCase();
   const catColors = CATEGORY_COLORS[catKey] || CATEGORY_COLORS.default;
   const statusCfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.scheduled;
   const durationH = Math.floor(item.duration_minutes / 60);
   const durationM = item.duration_minutes % 60;
-  const cost = Number(item.estimated_cost_usd);
+  const cost      = Number(item.estimated_cost_usd);
   const priceInfo = getPriceLabel(catKey);
-  const hasPhoto = photo?.url && !imgError;
+  const hasPhoto  = photo?.url && !imgError;
 
   return (
     <motion.div
@@ -160,10 +160,10 @@ export function ItineraryCard({
           : "border-border/60 hover:border-border/90"
       )}
     >
-      {/* Top color accent line */}
+      {/* Top accent line */}
       <div className="h-[2px] w-full" style={{ backgroundColor: dayColor }} />
 
-      {/* -- Photo banner -- */}
+      {/* Photo banner */}
       <div className="relative w-full h-[130px] bg-muted/30 overflow-hidden">
         {hasPhoto ? (
           <img
@@ -182,7 +182,7 @@ export function ItineraryCard({
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
 
-        {/* Top-left: index badge */}
+        {/* Index badge */}
         <div
           className="absolute top-2.5 left-2.5 h-6 w-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-md"
           style={{ backgroundColor: dayColor }}
@@ -190,7 +190,7 @@ export function ItineraryCard({
           {index}
         </div>
 
-        {/* Top-right: drag + lock */}
+        {/* Drag + lock */}
         <div className="absolute top-2 right-2 flex items-center gap-1">
           {dragHandleProps && (
             <div
@@ -207,36 +207,35 @@ export function ItineraryCard({
           >
             {item.is_locked
               ? <Lock className="h-3.5 w-3.5 text-amber-300" />
-              : <Unlock className="h-3.5 w-3.5" />
-            }
+              : <Unlock className="h-3.5 w-3.5" />}
           </button>
         </div>
 
-        {/* Bottom-left: time */}
+        {/* Time range */}
         <div className="absolute bottom-2.5 left-3 flex items-center gap-1.5">
           <span className="text-[11px] font-semibold text-white tabular-nums drop-shadow">
             {formatTime(item.start_time)}
           </span>
-          <span className="text-white/40 text-[9px]">?</span>
+          <ArrowRight className="h-2.5 w-2.5 text-white/50" />
           <span className="text-[10px] text-white/70 tabular-nums drop-shadow">
             {formatTime(item.end_time)}
           </span>
         </div>
 
-        {/* Bottom-right: status pill */}
+        {/* Status pill */}
         <button
           onClick={() => onStatusChange?.(item.id, NEXT_STATUS[item.status] || "scheduled")}
           className="absolute bottom-2.5 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/30 backdrop-blur-sm hover:bg-black/50 transition-colors"
-          title={`${statusCfg.label} — click to advance`}
+          title={`${statusCfg.label} -- click to advance`}
         >
-          <span className={cn("h-1.5 w-1.5 rounded-full", statusCfg.color, statusCfg.pulse && "animate-pulse")} />
+          <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusCfg.color, statusCfg.pulse && "animate-pulse")} />
           <span className="text-[10px] text-white/90 font-medium">{statusCfg.label}</span>
         </button>
       </div>
 
-      {/* -- Card body -- */}
+      {/* Card body */}
       <div className="px-3.5 pt-2.5 pb-3">
-        {/* Name + category icon */}
+        {/* Name row */}
         <div className="flex items-start gap-2 min-w-0">
           <CategoryIcon category={item.place.category} size="sm" />
           <div className="flex-1 min-w-0">
@@ -249,7 +248,7 @@ export function ItineraryCard({
               <span className="text-[10px] text-muted-foreground/60 truncate">{item.place.city}</span>
               {Number(item.place.rating) > 0 && (
                 <>
-                  <span className="text-muted-foreground/25 text-[9px]">·</span>
+                  <span className="text-muted-foreground/25 text-[9px]">&#183;</span>
                   <Star className="h-2.5 w-2.5 text-amber-400 fill-amber-400 shrink-0" />
                   <span className="text-[10px] text-muted-foreground/80 font-medium">
                     {Number(item.place.rating).toFixed(1)}
@@ -265,7 +264,6 @@ export function ItineraryCard({
 
         {/* Stats row */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Category pill */}
           <span
             className={cn(
               "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-medium border capitalize",
@@ -275,7 +273,6 @@ export function ItineraryCard({
             {item.place.category}
           </span>
 
-          {/* Duration */}
           {item.duration_minutes > 0 && (
             <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
               <Clock className="h-2.5 w-2.5 shrink-0" />
@@ -283,8 +280,7 @@ export function ItineraryCard({
             </span>
           )}
 
-          {/* Price with smart label */}
-          {cost > 0 && (
+          {cost > 0 ? (
             <span className="inline-flex items-center gap-1 ml-auto">
               <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/50">
                 {priceInfo.icon}
@@ -294,11 +290,10 @@ export function ItineraryCard({
                 {symbol}{Math.round(convertFromUsd(cost)).toLocaleString()}
               </span>
             </span>
-          )}
-          {cost === 0 && (
+          ) : (
             <span className="inline-flex items-center gap-0.5 ml-auto text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
               <Sparkles className="h-2.5 w-2.5" />
-              Free entry
+              Free
             </span>
           )}
         </div>
@@ -307,12 +302,7 @@ export function ItineraryCard({
         {item.place.description && (
           <div className="mt-2">
             <AnimatePresence initial={false}>
-              <p
-                className={cn(
-                  "text-[11px] text-muted-foreground/70 leading-relaxed",
-                  !expanded && "line-clamp-2"
-                )}
-              >
+              <p className={cn("text-[11px] text-muted-foreground/70 leading-relaxed", !expanded && "line-clamp-2")}>
                 {item.place.description}
               </p>
             </AnimatePresence>
