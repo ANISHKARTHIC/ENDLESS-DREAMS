@@ -66,6 +66,8 @@ import {
   Share2,
   FileDown,
   Eye,
+  Bookmark,
+  BookmarkCheck,
 } from "lucide-react";
 
 export default function TripDetailPage() {
@@ -90,6 +92,35 @@ export default function TripDetailPage() {
   const [heroImage, setHeroImage] = useState<string | null>(null);
   const [activeItineraryItemId, setActiveItineraryItemId] = useState<string | null>(null);
   const { convertFromUsd, symbol } = useCurrency();
+
+  // Saved itinerary state (localStorage)
+  const [isSaved, setIsSaved] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+
+  useEffect(() => {
+    if (!tripId) return;
+    const saved: { id: string }[] = JSON.parse(localStorage.getItem("savedItineraries") || "[]");
+    setIsSaved(saved.some((s) => s.id === tripId));
+  }, [tripId]);
+
+  const handleSaveItinerary = () => {
+    if (!trip) return;
+    const saved: Record<string, unknown>[] = JSON.parse(localStorage.getItem("savedItineraries") || "[]");
+    if (saved.some((s) => (s as any).id === tripId)) return;
+    saved.unshift({
+      id: tripId,
+      destination_city: trip.destination_city,
+      destination_country: trip.destination_country,
+      start_date: trip.start_date,
+      end_date: trip.end_date,
+      duration_days: trip.duration_days,
+      savedAt: new Date().toISOString(),
+    });
+    localStorage.setItem("savedItineraries", JSON.stringify(saved));
+    setIsSaved(true);
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 2000);
+  };
 
   // Determine if trip is happening today
   const today = new Date().toISOString().slice(0, 10);
@@ -434,13 +465,34 @@ export default function TripDetailPage() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => setIsShareOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 ml-2 rounded-xl text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition shrink-0"
-            >
-              <Share2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Share</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleSaveItinerary}
+                disabled={isSaved}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition ${
+                  isSaved
+                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-500 cursor-default"
+                    : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
+                }`}
+                title={isSaved ? "Itinerary saved to Profile" : "Save this itinerary"}
+              >
+                {isSaved ? (
+                  <BookmarkCheck className="h-4 w-4" />
+                ) : (
+                  <Bookmark className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">
+                  {justSaved ? "Saved!" : isSaved ? "Saved" : "Save"}
+                </span>
+              </button>
+              <button
+                onClick={() => setIsShareOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition"
+              >
+                <Share2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Share</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid lg:grid-cols-3 gap-8">
