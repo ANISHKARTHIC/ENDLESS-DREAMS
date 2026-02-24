@@ -478,7 +478,7 @@ export default function TripDetailPage() {
                   )}
 
                   {allItems.length > 0 ? (
-                    <div className="lg:grid lg:grid-cols-[1fr_300px] lg:gap-6">
+                    <div className="lg:grid lg:grid-cols-[1fr_420px] lg:gap-5">
                       {/* Timeline column */}
                       <div>
                         <ItineraryTimeline
@@ -496,7 +496,7 @@ export default function TripDetailPage() {
                       </div>
                       {/* Sticky map column — desktop only */}
                       <div className="hidden lg:block">
-                        <div className="sticky top-24 h-[calc(100vh-7rem)]">
+                        <div className="sticky top-20 h-[calc(100vh-5.5rem)]">
                           <TripMap
                             items={allItems}
                             selectedDay={selectedDay}
