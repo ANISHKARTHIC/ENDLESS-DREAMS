@@ -883,6 +883,13 @@ class ExploreDestinationsView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
+        try:
+            return self._get_from_db(request)
+        except Exception as e:
+            logger.error(f"ExploreDestinationsView DB error: {e}")
+            return Response({'destinations': []})
+
+    def _get_from_db(self, request):
         from django.db.models import Count, Avg
         from services.unsplash_service import UnsplashService
 

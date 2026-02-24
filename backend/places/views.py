@@ -69,25 +69,30 @@ class DestinationCitiesView(APIView):
 
     def get(self, request):
         q = request.query_params.get('q', '').strip()
-        from django.db.models import Count, Avg, Q
-        valid_coord_q = Q(latitude__isnull=False) & Q(longitude__isnull=False) & ~Q(latitude=0) & ~Q(longitude=0)
-        qs = Place.objects.values('city', 'country').annotate(
-            place_count=Count('id'),
-            lat=Avg('latitude', filter=valid_coord_q),
-            lng=Avg('longitude', filter=valid_coord_q),
-        ).order_by('-place_count')
+        try:
+            from django.db.models import Count, Avg, Q
+            valid_coord_q = Q(latitude__isnull=False) & Q(longitude__isnull=False) & ~Q(latitude=0) & ~Q(longitude=0)
+            qs = Place.objects.values('city', 'country').annotate(
+                place_count=Count('id'),
+                lat=Avg('latitude', filter=valid_coord_q),
+                lng=Avg('longitude', filter=valid_coord_q),
+            ).order_by('-place_count')
 
-        if q:
-            qs = qs.filter(Q(city__icontains=q) | Q(country__icontains=q))
+            if q:
+                qs = qs.filter(Q(city__icontains=q) | Q(country__icontains=q))
 
-        cities = [
-            {
-                'city': r['city'],
-                'country': r['country'],
-                'place_count': r['place_count'],
-                'lat': round(r['lat'], 4) if r['lat'] else 0,
-                'lng': round(r['lng'], 4) if r['lng'] else 0,
-            }
-            for r in qs[:100]
-        ]
+            cities = [
+                {
+                    'city': r['city'],
+                    'country': r['country'],
+                    'place_count': r['place_count'],
+                    'lat': round(r['lat'], 4) if r['lat'] else 0,
+                    'lng': round(r['lng'], 4) if r['lng'] else 0,
+                }
+                for r in qs[:100]
+            ]
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"DestinationCitiesView DB error: {e}")
+            cities = []
         return Response({'cities': cities})

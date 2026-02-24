@@ -59,7 +59,7 @@ CELERY_RESULT_BACKEND = REDIS_URL
 _frontend_url = os.environ.get('FRONTEND_URL', '')
 CORS_ALLOWED_ORIGINS = [o for o in [
     _frontend_url,
-    'https://endless-dream-inno.vercel.app',
+    'https://endless-dreams-inno.vercel.app',
 ] if o]
 
 CORS_ALLOWED_ORIGIN_REGEXES = [

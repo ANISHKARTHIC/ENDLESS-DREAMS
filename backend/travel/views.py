@@ -151,16 +151,31 @@ class CurrencyRatesView(APIView):
     """Get exchange rates (INR base)."""
     permission_classes = [permissions.AllowAny]
 
-    def get(self, request):
-        # Refresh rates if stale
-        svc = CurrencyService()
-        svc.refresh_rates_if_needed()
+    # Hardcoded fallback so the UI never breaks even if DB is unavailable
+    FALLBACK_RATES = [
+        {'currency_code': 'INR', 'currency_name': 'Indian Rupee',     'symbol': '\u20b9', 'rate_from_inr': '1.000000'},
+        {'currency_code': 'USD', 'currency_name': 'US Dollar',        'symbol': '$',      'rate_from_inr': '0.011976'},
+        {'currency_code': 'EUR', 'currency_name': 'Euro',             'symbol': '\u20ac', 'rate_from_inr': '0.010980'},
+        {'currency_code': 'GBP', 'currency_name': 'British Pound',    'symbol': '\u00a3', 'rate_from_inr': '0.009460'},
+        {'currency_code': 'JPY', 'currency_name': 'Japanese Yen',     'symbol': '\u00a5', 'rate_from_inr': '1.835000'},
+        {'currency_code': 'AED', 'currency_name': 'UAE Dirham',       'symbol': 'AED',    'rate_from_inr': '0.043980'},
+        {'currency_code': 'SGD', 'currency_name': 'Singapore Dollar', 'symbol': 'S$',     'rate_from_inr': '0.016050'},
+        {'currency_code': 'AUD', 'currency_name': 'Australian Dollar','symbol': 'A$',     'rate_from_inr': '0.018350'},
+        {'currency_code': 'CAD', 'currency_name': 'Canadian Dollar',  'symbol': 'C$',     'rate_from_inr': '0.016520'},
+    ]
 
-        rates = CurrencyRate.objects.all()
-        return Response({
-            'base': 'INR',
-            'rates': CurrencyRateSerializer(rates, many=True).data,
-        })
+    def get(self, request):
+        try:
+            svc = CurrencyService()
+            svc.refresh_rates_if_needed()
+            rates = CurrencyRate.objects.all()
+            return Response({
+                'base': 'INR',
+                'rates': CurrencyRateSerializer(rates, many=True).data,
+            })
+        except Exception as e:
+            logger.error(f"CurrencyRatesView DB error, returning fallback: {e}")
+            return Response({'base': 'INR', 'rates': self.FALLBACK_RATES})
 
 
 class CurrencyConvertView(APIView):

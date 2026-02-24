@@ -23,7 +23,10 @@ RUN SECRET_KEY=build-collect-static-placeholder \
     DJANGO_ALLOWED_HOSTS=localhost \
     python manage.py collectstatic --noinput
 
+# Make entrypoint executable
+RUN chmod +x /app/entrypoint.sh
+
 EXPOSE 8000
 
-# Daphne serves both HTTP and WebSockets via ASGI
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]
+# entrypoint.sh runs migrate → seeds currencies → starts Daphne
+ENTRYPOINT ["/app/entrypoint.sh"]
