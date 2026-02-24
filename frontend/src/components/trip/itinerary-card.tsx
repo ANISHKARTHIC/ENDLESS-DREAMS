@@ -11,13 +11,17 @@ import {
   MapPin,
   Star,
   Clock,
-  DollarSign,
-  ImageOff,
   ChevronDown,
   ChevronUp,
+  Ticket,
+  Utensils,
+  ShoppingBag,
+  Zap,
+  Sparkles,
+  ImageOff,
 } from "lucide-react";
 import type { ItineraryItem } from "@/types";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/contexts/currency-context";
 
 interface ItineraryCardProps {
@@ -33,16 +37,16 @@ interface ItineraryCardProps {
 type PlacePhoto = { url: string };
 const placePhotoCache: Record<string, PlacePhoto | null> = {};
 
-export const CATEGORY_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  food:       { bg: "bg-orange-50 dark:bg-orange-950/20",   text: "text-orange-600 dark:text-orange-400",  dot: "#f97316" },
-  culture:    { bg: "bg-amber-50 dark:bg-amber-950/20",     text: "text-amber-600 dark:text-amber-400",    dot: "#f59e0b" },
-  nature:     { bg: "bg-emerald-50 dark:bg-emerald-950/20", text: "text-emerald-600 dark:text-emerald-400",dot: "#10b981" },
-  adventure:  { bg: "bg-blue-50 dark:bg-blue-950/20",       text: "text-blue-600 dark:text-blue-400",      dot: "#3b82f6" },
-  relaxation: { bg: "bg-purple-50 dark:bg-purple-950/20",   text: "text-purple-600 dark:text-purple-400",  dot: "#8b5cf6" },
-  shopping:   { bg: "bg-pink-50 dark:bg-pink-950/20",       text: "text-pink-600 dark:text-pink-400",      dot: "#ec4899" },
-  nightlife:  { bg: "bg-indigo-50 dark:bg-indigo-950/20",   text: "text-indigo-600 dark:text-indigo-400",  dot: "#6366f1" },
-  landmark:   { bg: "bg-rose-50 dark:bg-rose-950/20",       text: "text-rose-600 dark:text-rose-400",      dot: "#f43f5e" },
-  default:    { bg: "bg-slate-50 dark:bg-slate-900/30",     text: "text-slate-600 dark:text-slate-400",    dot: "#64748b" },
+export const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  food:        { bg: "bg-orange-100/80 dark:bg-orange-900/30", text: "text-orange-700 dark:text-orange-300", border: "border-orange-200 dark:border-orange-800/40" },
+  culture:     { bg: "bg-amber-100/80 dark:bg-amber-900/30",   text: "text-amber-700 dark:text-amber-300",   border: "border-amber-200 dark:border-amber-800/40" },
+  nature:      { bg: "bg-emerald-100/80 dark:bg-emerald-900/30",text:"text-emerald-700 dark:text-emerald-300",border: "border-emerald-200 dark:border-emerald-800/40" },
+  adventure:   { bg: "bg-blue-100/80 dark:bg-blue-900/30",     text: "text-blue-700 dark:text-blue-300",     border: "border-blue-200 dark:border-blue-800/40" },
+  relaxation:  { bg: "bg-purple-100/80 dark:bg-purple-900/30", text: "text-purple-700 dark:text-purple-300", border: "border-purple-200 dark:border-purple-800/40" },
+  shopping:    { bg: "bg-pink-100/80 dark:bg-pink-900/30",     text: "text-pink-700 dark:text-pink-300",     border: "border-pink-200 dark:border-pink-800/40" },
+  nightlife:   { bg: "bg-indigo-100/80 dark:bg-indigo-900/30", text: "text-indigo-700 dark:text-indigo-300", border: "border-indigo-200 dark:border-indigo-800/40" },
+  landmark:    { bg: "bg-rose-100/80 dark:bg-rose-900/30",     text: "text-rose-700 dark:text-rose-300",     border: "border-rose-200 dark:border-rose-800/40" },
+  default:     { bg: "bg-slate-100/80 dark:bg-slate-800/40",   text: "text-slate-600 dark:text-slate-400",   border: "border-slate-200 dark:border-slate-700/40" },
 };
 
 export const DAY_COLORS = [
@@ -50,12 +54,12 @@ export const DAY_COLORS = [
   "#06b6d4","#ef4444","#84cc16","#f97316","#6366f1",
 ];
 
-const STATUS_CONFIG: Record<string, { label: string; ring: string }> = {
-  scheduled:   { label: "Planned",     ring: "ring-slate-300 dark:ring-slate-600" },
-  in_progress: { label: "Live",        ring: "ring-blue-400" },
-  completed:   { label: "Done",        ring: "ring-emerald-400" },
-  skipped:     { label: "Skipped",     ring: "ring-gray-300 dark:ring-gray-600" },
-  replanned:   { label: "Replanned",   ring: "ring-amber-400" },
+const STATUS_CONFIG: Record<string, { label: string; color: string; pulse?: boolean }> = {
+  scheduled:   { label: "Planned",   color: "bg-slate-400 dark:bg-slate-500" },
+  in_progress: { label: "Live",      color: "bg-blue-500", pulse: true },
+  completed:   { label: "Done",      color: "bg-emerald-500" },
+  skipped:     { label: "Skipped",   color: "bg-gray-300 dark:bg-gray-600" },
+  replanned:   { label: "Replanned", color: "bg-amber-400" },
 };
 
 const NEXT_STATUS: Record<string, string> = {
@@ -65,6 +69,24 @@ const NEXT_STATUS: Record<string, string> = {
   skipped:     "scheduled",
   replanned:   "scheduled",
 };
+
+// Smart price label based on category
+function getPriceLabel(category: string): { label: string; icon: React.ReactNode } {
+  const cat = category.toLowerCase();
+  if (["food", "cafe", "restaurant", "dining"].includes(cat))
+    return { label: "Per person", icon: <Utensils className="h-2.5 w-2.5" /> };
+  if (["landmark", "culture", "museum", "heritage", "monument"].includes(cat))
+    return { label: "Entry fee", icon: <Ticket className="h-2.5 w-2.5" /> };
+  if (["adventure", "sport", "activity"].includes(cat))
+    return { label: "Per person", icon: <Zap className="h-2.5 w-2.5" /> };
+  if (["relaxation", "spa", "wellness"].includes(cat))
+    return { label: "Per session", icon: <Sparkles className="h-2.5 w-2.5" /> };
+  if (["shopping"].includes(cat))
+    return { label: "Avg spend", icon: <ShoppingBag className="h-2.5 w-2.5" /> };
+  if (["nightlife", "bar", "club"].includes(cat))
+    return { label: "Cover charge", icon: <Ticket className="h-2.5 w-2.5" /> };
+  return { label: "Est. cost", icon: <Ticket className="h-2.5 w-2.5" /> };
+}
 
 export function ItineraryCard({
   item,
@@ -81,7 +103,7 @@ export function ItineraryCard({
     [item.place.name, item.place.city]
   );
   const [photo, setPhoto] = useState<PlacePhoto | null>(
-    item.place.image_url ? { url: item.place.image_url } : placePhotoCache[cacheKey] ?? null
+    item.place.image_url ? { url: item.place.image_url } : (placePhotoCache[cacheKey] ?? null)
   );
   const [imgError, setImgError] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -100,7 +122,9 @@ export function ItineraryCard({
     api.getUnsplashPhotos({ place: item.place.name, city: item.place.city, count: 1 })
       .then((result) => {
         const first = result.photos?.[0];
-        const resolved = first ? { url: first.url_regular || first.url_small || first.url_thumb || "" } : null;
+        const resolved = first
+          ? { url: first.url_regular || first.url_small || first.url_thumb || "" }
+          : null;
         placePhotoCache[cacheKey] = resolved;
         if (isMounted) setPhoto(resolved);
       })
@@ -111,175 +135,199 @@ export function ItineraryCard({
     return () => { isMounted = false; };
   }, [cacheKey, item.place.city, item.place.image_url, item.place.name]);
 
-  const catKey = (item.place.category || "default").toLowerCase();
+  const catKey  = (item.place.category || "default").toLowerCase();
   const catColors = CATEGORY_COLORS[catKey] || CATEGORY_COLORS.default;
   const statusCfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.scheduled;
   const durationH = Math.floor(item.duration_minutes / 60);
   const durationM = item.duration_minutes % 60;
   const cost = Number(item.estimated_cost_usd);
+  const priceInfo = getPriceLabel(catKey);
+  const hasPhoto = photo?.url && !imgError;
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4 }}
+      transition={{ duration: 0.18 }}
       className={cn(
-        "group relative flex rounded-xl border bg-card overflow-hidden",
-        "transition-all duration-200 hover:shadow-md hover:shadow-black/[0.06] dark:hover:shadow-black/20",
-        isDragging && "shadow-2xl rotate-1 scale-[1.02] opacity-90 z-50",
+        "group relative rounded-2xl border bg-card overflow-hidden",
+        "transition-all duration-200 hover:shadow-lg hover:shadow-black/[0.07] dark:hover:shadow-black/25",
+        isDragging && "shadow-2xl rotate-[0.8deg] scale-[1.02] opacity-90 z-50",
         item.is_locked
-          ? "border-amber-300/60 dark:border-amber-700/40"
-          : "border-border/70 hover:border-border"
+          ? "border-amber-300/50 dark:border-amber-700/30"
+          : "border-border/60 hover:border-border/90"
       )}
     >
-      {/* Left category color bar */}
-      <div
-        className="w-[3px] shrink-0 transition-all duration-300 group-hover:w-1"
-        style={{ backgroundColor: dayColor }}
-      />
+      {/* Top color accent line */}
+      <div className="h-[2px] w-full" style={{ backgroundColor: dayColor }} />
 
-      {/* Main card content */}
-      <div className="flex flex-1 min-w-0 px-3 py-2.5 gap-3">
-
-        {/* Time column */}
-        <div className="flex flex-col items-end shrink-0 w-[52px] select-none pt-0.5">
-          <span className="text-[11px] font-bold text-foreground/90 tabular-nums leading-none">
-            {formatTime(item.start_time)}
-          </span>
-          <div className="flex-1 w-px bg-border/40 my-1 self-center min-h-[12px]" />
-          <span className="text-[10px] text-muted-foreground/60 tabular-nums leading-none">
-            {formatTime(item.end_time)}
-          </span>
-        </div>
-
-        {/* Status dot */}
-        <div className="flex flex-col items-center shrink-0 w-3 mt-[3px]">
-          <button
-            onClick={() => onStatusChange?.(item.id, NEXT_STATUS[item.status] || "scheduled")}
-            title={`Status: ${statusCfg.label} ï¿½ click to advance`}
-            className={cn(
-              "h-3 w-3 rounded-full border-2 border-background shrink-0 transition-all duration-200",
-              "ring-2 hover:scale-125 cursor-pointer",
-              statusCfg.ring
-            )}
-            style={{ backgroundColor: dayColor }}
+      {/* -- Photo banner -- */}
+      <div className="relative w-full h-[130px] bg-muted/30 overflow-hidden">
+        {hasPhoto ? (
+          <img
+            src={photo!.url}
+            alt={item.place.name}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+            onError={() => setImgError(true)}
+            loading="lazy"
           />
+        ) : (
+          <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-muted/60 to-muted/20">
+            <ImageOff className="h-7 w-7 text-muted-foreground/15" />
+          </div>
+        )}
+
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+
+        {/* Top-left: index badge */}
+        <div
+          className="absolute top-2.5 left-2.5 h-6 w-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-md"
+          style={{ backgroundColor: dayColor }}
+        >
+          {index}
         </div>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          {/* Name row */}
-          <div className="flex items-start gap-1.5">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <CategoryIcon category={item.place.category} size="sm" />
-                <h3 className="text-sm font-semibold text-foreground/95 leading-tight truncate">
-                  {item.place.name}
-                </h3>
-                {item.is_locked && (
-                  <Lock className="h-3 w-3 text-amber-500 shrink-0 ml-0.5" />
-                )}
-              </div>
-              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                <MapPin className="h-2.5 w-2.5 text-muted-foreground/40 shrink-0" />
-                <span className="text-[10px] text-muted-foreground/60 truncate">{item.place.city}</span>
-                {Number(item.place.rating) > 0 && (
-                  <>
-                    <span className="text-muted-foreground/30 text-[10px]">ï¿½</span>
-                    <Star className="h-2.5 w-2.5 text-amber-400 fill-amber-400 shrink-0" />
-                    <span className="text-[10px] text-muted-foreground/80">{Number(item.place.rating).toFixed(1)}</span>
-                  </>
-                )}
-              </div>
-            </div>
-            {/* Drag handle */}
-            {dragHandleProps && (
-              <div
-                {...dragHandleProps}
-                className="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/20 hover:text-muted-foreground/60 transition-colors p-0.5 mt-0.5"
-              >
-                <GripVertical className="h-4 w-4" />
-              </div>
-            )}
-          </div>
-
-          {/* Meta pills row */}
-          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-            <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full capitalize", catColors.bg, catColors.text)}>
-              {item.place.category}
-            </span>
-            <span className={cn(
-              "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
-              item.status === "completed" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
-              item.status === "in_progress" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" :
-              item.status === "skipped" ? "bg-gray-100 text-gray-500 dark:bg-gray-800/40 dark:text-gray-400" :
-              "bg-muted text-muted-foreground"
-            )}>
-              {statusCfg.label}
-            </span>
-            {item.duration_minutes > 0 && (
-              <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
-                <Clock className="h-2.5 w-2.5" />
-                {durationH > 0 ? `${durationH}h ` : ""}{durationM > 0 ? `${durationM}m` : ""}
-              </span>
-            )}
-            {cost > 0 && (
-              <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
-                <DollarSign className="h-2.5 w-2.5" />
-                {symbol}{Math.round(convertFromUsd(cost)).toLocaleString()}
-              </span>
-            )}
-            {Number(item.score) > 0 && (
-              <span className="text-[10px] text-primary/60 font-medium ml-auto">
-                AI {Number(item.score).toFixed(1)}
-              </span>
-            )}
-          </div>
-
-          {/* Description */}
-          {item.place.description && (
-            <div className="mt-1.5">
-              <p className={cn("text-[11px] text-muted-foreground/80 leading-relaxed", !expanded && "line-clamp-2")}>
-                {item.place.description}
-              </p>
-              {item.place.description.length > 100 && (
-                <button
-                  onClick={() => setExpanded(!expanded)}
-                  className="flex items-center gap-0.5 text-[10px] text-primary/60 hover:text-primary mt-0.5 transition-colors"
-                >
-                  {expanded ? <><ChevronUp className="h-2.5 w-2.5" />Less</> : <><ChevronDown className="h-2.5 w-2.5" />More</>}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right side: photo + lock */}
-        <div className="flex flex-col items-end justify-between shrink-0 gap-1.5">
-          {photo?.url && !imgError ? (
-            <div className="h-[60px] w-[60px] rounded-lg overflow-hidden border border-border/30 shrink-0">
-              <img
-                src={photo.url}
-                alt={item.place.name}
-                className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                onError={() => setImgError(true)}
-                loading="lazy"
-              />
-            </div>
-          ) : (
-            <div className="h-[60px] w-[60px] rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
-              <ImageOff className="h-4 w-4 text-muted-foreground/20" />
+        {/* Top-right: drag + lock */}
+        <div className="absolute top-2 right-2 flex items-center gap-1">
+          {dragHandleProps && (
+            <div
+              {...dragHandleProps}
+              className="p-1 rounded-lg bg-black/30 backdrop-blur-sm text-white/70 hover:text-white cursor-grab active:cursor-grabbing transition-colors"
+            >
+              <GripVertical className="h-3.5 w-3.5" />
             </div>
           )}
           <button
             onClick={() => onToggleLock?.(item.id)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted text-muted-foreground/40 hover:text-foreground"
-            title={item.is_locked ? "Unlock item" : "Lock item"}
+            className="p-1 rounded-lg bg-black/30 backdrop-blur-sm text-white/70 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+            title={item.is_locked ? "Unlock" : "Lock"}
           >
-            {item.is_locked ? <Lock className="h-3 w-3 text-amber-500" /> : <Unlock className="h-3 w-3" />}
+            {item.is_locked
+              ? <Lock className="h-3.5 w-3.5 text-amber-300" />
+              : <Unlock className="h-3.5 w-3.5" />
+            }
           </button>
         </div>
+
+        {/* Bottom-left: time */}
+        <div className="absolute bottom-2.5 left-3 flex items-center gap-1.5">
+          <span className="text-[11px] font-semibold text-white tabular-nums drop-shadow">
+            {formatTime(item.start_time)}
+          </span>
+          <span className="text-white/40 text-[9px]">?</span>
+          <span className="text-[10px] text-white/70 tabular-nums drop-shadow">
+            {formatTime(item.end_time)}
+          </span>
+        </div>
+
+        {/* Bottom-right: status pill */}
+        <button
+          onClick={() => onStatusChange?.(item.id, NEXT_STATUS[item.status] || "scheduled")}
+          className="absolute bottom-2.5 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/30 backdrop-blur-sm hover:bg-black/50 transition-colors"
+          title={`${statusCfg.label} — click to advance`}
+        >
+          <span className={cn("h-1.5 w-1.5 rounded-full", statusCfg.color, statusCfg.pulse && "animate-pulse")} />
+          <span className="text-[10px] text-white/90 font-medium">{statusCfg.label}</span>
+        </button>
+      </div>
+
+      {/* -- Card body -- */}
+      <div className="px-3.5 pt-2.5 pb-3">
+        {/* Name + category icon */}
+        <div className="flex items-start gap-2 min-w-0">
+          <CategoryIcon category={item.place.category} size="sm" />
+          <div className="flex-1 min-w-0">
+            <h3 className="text-[13px] font-semibold text-foreground leading-snug truncate">
+              {item.place.name}
+              {item.is_locked && <Lock className="inline h-2.5 w-2.5 text-amber-500 ml-1 mb-0.5" />}
+            </h3>
+            <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+              <MapPin className="h-2.5 w-2.5 text-muted-foreground/40 shrink-0" />
+              <span className="text-[10px] text-muted-foreground/60 truncate">{item.place.city}</span>
+              {Number(item.place.rating) > 0 && (
+                <>
+                  <span className="text-muted-foreground/25 text-[9px]">·</span>
+                  <Star className="h-2.5 w-2.5 text-amber-400 fill-amber-400 shrink-0" />
+                  <span className="text-[10px] text-muted-foreground/80 font-medium">
+                    {Number(item.place.rating).toFixed(1)}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="my-2 h-px bg-border/40" />
+
+        {/* Stats row */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Category pill */}
+          <span
+            className={cn(
+              "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-medium border capitalize",
+              catColors.bg, catColors.text, catColors.border
+            )}
+          >
+            {item.place.category}
+          </span>
+
+          {/* Duration */}
+          {item.duration_minutes > 0 && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
+              <Clock className="h-2.5 w-2.5 shrink-0" />
+              {durationH > 0 ? `${durationH}h` : ""}{durationM > 0 ? ` ${durationM}m` : ""}
+            </span>
+          )}
+
+          {/* Price with smart label */}
+          {cost > 0 && (
+            <span className="inline-flex items-center gap-1 ml-auto">
+              <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/50">
+                {priceInfo.icon}
+                <span>{priceInfo.label}:</span>
+              </span>
+              <span className="text-[11px] font-semibold text-foreground/80">
+                {symbol}{Math.round(convertFromUsd(cost)).toLocaleString()}
+              </span>
+            </span>
+          )}
+          {cost === 0 && (
+            <span className="inline-flex items-center gap-0.5 ml-auto text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+              <Sparkles className="h-2.5 w-2.5" />
+              Free entry
+            </span>
+          )}
+        </div>
+
+        {/* Description */}
+        {item.place.description && (
+          <div className="mt-2">
+            <AnimatePresence initial={false}>
+              <p
+                className={cn(
+                  "text-[11px] text-muted-foreground/70 leading-relaxed",
+                  !expanded && "line-clamp-2"
+                )}
+              >
+                {item.place.description}
+              </p>
+            </AnimatePresence>
+            {item.place.description.length > 90 && (
+              <button
+                onClick={() => setExpanded(!expanded)}
+                className="flex items-center gap-0.5 text-[10px] text-primary/50 hover:text-primary mt-0.5 transition-colors"
+              >
+                {expanded
+                  ? <><ChevronUp className="h-2.5 w-2.5" />Show less</>
+                  : <><ChevronDown className="h-2.5 w-2.5" />Show more</>}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </motion.div>
   );

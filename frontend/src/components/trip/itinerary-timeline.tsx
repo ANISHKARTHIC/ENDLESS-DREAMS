@@ -149,7 +149,7 @@ export function ItineraryTimeline({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: dayIdx * 0.1 }}
-            className="rounded-2xl border border-border/60 bg-card/40 p-4 sm:p-5"
+            className="rounded-2xl border border-border/50 bg-card/30 p-4 sm:p-5"
           >
             {/* Day header */}
             <div className="mb-4 flex items-center justify-between gap-3">
@@ -161,9 +161,9 @@ export function ItineraryTimeline({
                   {day}
                 </div>
                 <div>
-                  <h3 className="font-bold text-foreground text-lg">Day {day}</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {dayItems.length} activities planned
+                  <h3 className="font-bold text-foreground text-base">Day {day}</h3>
+                  <p className="text-[11px] text-muted-foreground">
+                    {dayItems.length} {dayItems.length === 1 ? "activity" : "activities"}
                   </p>
                 </div>
               </div>
@@ -178,41 +178,34 @@ export function ItineraryTimeline({
               </div>
             </div>
 
-            {/* Timeline */}
-            <div className="relative ml-4 pl-6 border-l-2 border-border/80 space-y-3">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd(day)}
+            {/* Cards grid */}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd(day)}
+            >
+              <SortableContext
+                items={dayItems.map((i) => i.id)}
+                strategy={verticalListSortingStrategy}
               >
-                <SortableContext
-                  items={dayItems.map((i) => i.id)}
-                  strategy={verticalListSortingStrategy}
-                >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {dayItems.map((item, itemIdx) => {
-                      const dc = DAY_COLORS[(day - 1) % DAY_COLORS.length];
-                      return (
-                        <div key={item.id} className="relative" data-item-id={item.id} data-day-number={item.day_number}>
-                          {/* Timeline dot */}
-                          <div
-                            className="absolute -left-[33px] top-5 h-4 w-4 rounded-full bg-background border-2 flex items-center justify-center"
-                            style={{ borderColor: dc }}
-                          >
-                            <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: dc }} />
-                          </div>
-                          <SortableItem
-                            item={item}
-                            index={itemIdx + 1}
-                            dayColor={dc}
-                            onToggleLock={onToggleLock}
-                            onStatusChange={onStatusChange}
-                          />
-                        </div>
-                      );
-                    })}
-                </SortableContext>
-              </DndContext>
-            </div>
+                    const dc = DAY_COLORS[(day - 1) % DAY_COLORS.length];
+                    return (
+                      <div key={item.id} data-item-id={item.id} data-day-number={item.day_number}>
+                        <SortableItem
+                          item={item}
+                          index={itemIdx + 1}
+                          dayColor={dc}
+                          onToggleLock={onToggleLock}
+                          onStatusChange={onStatusChange}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
           </motion.div>
         );
       })}
