@@ -105,6 +105,51 @@ cp .env.example .env
 
 All external APIs have mock fallbacks — the app works fully offline.
 
+## Telegram Bot Setup
+
+1. Create a bot with `@BotFather` and copy the token.
+2. Add to `.env`:
+    - `TELEGRAM_BOT_TOKEN=<your-token>`
+    - `TELEGRAM_WEBHOOK_URL=https://<public-domain>/api/v1/telegram/webhook/`
+3. Run backend migrations (first time only):
+    - `cd backend`
+    - `python manage.py migrate`
+4. Register webhook:
+    - `POST /api/v1/telegram/setup/`
+5. Check status:
+    - `GET /api/v1/telegram/status/`
+6. In Telegram, open your bot and send `/start`, then `/trips`.
+
+For local development, expose backend to internet first (e.g. Cloudflare Tunnel or ngrok), then use that HTTPS URL as `TELEGRAM_WEBHOOK_URL`.
+
+## Deploy on Railway (Monorepo)
+
+This repo contains `backend/` and `frontend/`, so Railway auto-detection can fail at the root.
+Use the provided Railway files at repo root:
+
+- `railway.toml`
+- `Dockerfile.railway`
+
+### Backend service
+
+1. Create a new Railway project from this repo.
+2. Railway will use `railway.toml` and build `Dockerfile.railway`.
+3. Set environment variables on Railway:
+    - `DJANGO_SETTINGS_MODULE=config.settings.production`
+    - `SECRET_KEY`
+    - `DJANGO_ALLOWED_HOSTS=<your-railway-domain>`
+    - `FRONTEND_URL=<your-frontend-url>`
+    - `DATABASE_URL` (from Railway Postgres)
+    - `REDIS_URL` (from Railway Redis)
+    - `TELEGRAM_BOT_TOKEN`
+    - `TELEGRAM_WEBHOOK_URL=https://<your-railway-domain>/api/v1/telegram/webhook/`
+4. Deploy.
+
+### Telegram activation after deploy
+
+- `POST https://<your-railway-domain>/api/v1/telegram/setup/`
+- `GET  https://<your-railway-domain>/api/v1/telegram/status/`
+
 ## Project Structure
 
 ```

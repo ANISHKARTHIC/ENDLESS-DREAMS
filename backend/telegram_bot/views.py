@@ -74,3 +74,7 @@ class TelegramNotifyView(View):
             return JsonResponse({'ok': ok})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
+
+
+TelegramSetupView = method_decorator(csrf_exempt, name='dispatch')(TelegramSetupView)
+TelegramNotifyView = method_decorator(csrf_exempt, name='dispatch')(TelegramNotifyView)
