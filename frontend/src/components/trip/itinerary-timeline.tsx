@@ -149,36 +149,36 @@ export function ItineraryTimeline({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: dayIdx * 0.1 }}
-            className="rounded-2xl border border-border/50 bg-card/30 p-4 sm:p-5"
+            className="rounded-2xl border border-border/40 bg-card/20 backdrop-blur-sm p-4 sm:p-5"
           >
             {/* Day header */}
             <div className="mb-4 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <div
-                  className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold text-sm"
+                  className="h-9 w-9 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0"
                   style={{ backgroundColor: DAY_COLORS[(day - 1) % DAY_COLORS.length] }}
                 >
                   {day}
                 </div>
                 <div>
-                  <h3 className="font-bold text-foreground text-base">Day {day}</h3>
-                  <p className="text-[11px] text-muted-foreground">
+                  <h3 className="font-bold text-foreground text-[15px] leading-tight">Day {day}</h3>
+                  <p className="text-[11px] text-muted-foreground/70">
                     {dayItems.length} {dayItems.length === 1 ? "activity" : "activities"}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-xs">
-                <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span className="rounded-lg bg-muted/70 border border-border/40 px-2.5 py-1 text-xs font-semibold text-foreground/70">
                   {symbol}{Math.round(convertFromUsd(totalCost)).toLocaleString()}
                 </span>
-                <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
+                <span className="rounded-lg bg-muted/70 border border-border/40 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                   {Math.round(totalDuration / 60)}h {totalDuration % 60}m
                 </span>
               </div>
             </div>
 
-            {/* Cards grid */}
+            {/* Cards list */}
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
@@ -188,7 +188,7 @@ export function ItineraryTimeline({
                 items={dayItems.map((i) => i.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-2">
                   {dayItems.map((item, itemIdx) => {
                     const dc = DAY_COLORS[(day - 1) % DAY_COLORS.length];
                     return (
@@ -203,6 +203,11 @@ export function ItineraryTimeline({
                       </div>
                     );
                   })}
+                  {dayItems.length === 0 && (
+                    <div className="py-6 text-center text-sm text-muted-foreground/50 rounded-xl border border-dashed border-border/40">
+                      No activities planned for this day
+                    </div>
+                  )}
                 </div>
               </SortableContext>
             </DndContext>

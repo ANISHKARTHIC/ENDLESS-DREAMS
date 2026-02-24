@@ -57,18 +57,28 @@ class RouteOptimizer:
     def optimize(self) -> List[Dict[str, Any]]:
         """Generate full itinerary. Returns list of item dicts."""
         itinerary_items = []
-        used_places = set()
-        remaining = list(self.scored_places)
+        # Track which places were used on the *immediately previous* day so
+        # we can still recycle the full scored_places pool across days but
+        # avoid showing exactly the same place two days in a row.
+        prev_day_places: set = set()
+        all_place_ids = {p['place_id'] for p in self.scored_places}
 
         for day in range(1, self.duration_days + 1):
-            day_items = self._plan_day(day, remaining, used_places)
+            # Build the available pool for this day:
+            # Prefer places not yet shown in any prior day; if exhausted, recycle
+            # everything except what was shown *yesterday* (for variety).
+            ever_used = {item['place_id'] for item in itinerary_items}
+            fresh = [p for p in self.scored_places if p['place_id'] not in ever_used]
+            if not fresh:
+                # Recycle — exclude only yesterday's places for variety
+                fresh = [p for p in self.scored_places if p['place_id'] not in prev_day_places]
+            if not fresh:
+                # Last resort: use all places
+                fresh = list(self.scored_places)
+
+            day_items = self._plan_day(day, fresh, set())
             itinerary_items.extend(day_items)
-
-            # Remove used places
-            for item in day_items:
-                used_places.add(item['place_id'])
-
-            remaining = [p for p in remaining if p['place_id'] not in used_places]
+            prev_day_places = {item['place_id'] for item in day_items}
 
         logger.info(
             f"Generated {len(itinerary_items)} items over {self.duration_days} days "
