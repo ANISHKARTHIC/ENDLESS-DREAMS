@@ -181,6 +181,17 @@ class ApiClient {
     return this.request<Trip>(`/trips/${id}/`);
   }
 
+  async deleteTrip(id: string) {
+    const response = await fetch(`${this.baseUrl}/trips/${id}/`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    if (!response.ok && response.status !== 204) {
+      const error = await response.json().catch(() => ({ detail: 'Delete failed' }));
+      throw new Error(error.detail || 'Failed to delete trip');
+    }
+  }
+
   async getTripHealth(tripId: string) {
     return this.request<TripHealth>(`/trips/${tripId}/health/`);
   }
