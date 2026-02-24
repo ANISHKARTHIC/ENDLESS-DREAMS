@@ -27,6 +27,15 @@ if _db_url:
             ssl_require='sslmode' not in _db_url,
         )
     }
+else:
+    # Railway safety fallback when DATABASE_URL is not attached yet and DB_NAME is blank.
+    if not str(os.environ.get('DB_NAME', '')).strip():
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
 
 # ── Redis / Channels ──────────────────────────────────────────────────────────
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')

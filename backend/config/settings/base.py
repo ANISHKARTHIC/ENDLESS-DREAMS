@@ -7,7 +7,13 @@ from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-secret-key-change-in-production')
+
+def _env(name: str, default: str = '') -> str:
+    value = os.environ.get(name)
+    return value if value not in (None, '') else default
+
+
+SECRET_KEY = _env('SECRET_KEY', _env('DJANGO_SECRET_KEY', 'dev-secret-key-change-in-production'))
 
 INSTALLED_APPS = [
     'daphne',
@@ -81,11 +87,11 @@ CHANNEL_LAYERS = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'endless_dreams'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'postgres'),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
+        'NAME': _env('DB_NAME', 'endless_dreams'),
+        'USER': _env('DB_USER', 'postgres'),
+        'PASSWORD': _env('DB_PASSWORD', 'postgres'),
+        'HOST': _env('DB_HOST', 'localhost'),
+        'PORT': _env('DB_PORT', '5432'),
     }
 }
 
