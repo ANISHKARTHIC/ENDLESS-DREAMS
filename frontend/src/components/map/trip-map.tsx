@@ -148,6 +148,7 @@ export function TripMap({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [routesLoading, setRoutesLoading] = useState(false);
+  const [mapStyle, setMapStyle] = useState<'satellite' | 'street'>('satellite');
 
   // Inject popup CSS once
   useEffect(() => {
@@ -380,12 +381,30 @@ export function TripMap({
         ref={mapRef}
         initialViewState={{ ...center, zoom: 12 }}
         style={{ width: "100%", height: "100%", minHeight: 400 }}
-        mapStyle="mapbox://styles/mapbox/dark-v11"
+        mapStyle={
+          mapStyle === 'satellite'
+            ? "mapbox://styles/mapbox/satellite-streets-v12"
+            : "mapbox://styles/mapbox/dark-v11"
+        }
         mapboxAccessToken={MAPBOX_TOKEN}
         onLoad={() => setMapLoaded(true)}
         onClick={() => setSelectedPlace(null)}
       >
         <NavigationControl position="top-right" />
+
+        {/* ── Style Toggle ── */}
+        <div className="absolute top-2 left-2 z-10">
+          <button
+            onClick={() => setMapStyle(s => s === 'satellite' ? 'street' : 'satellite')}
+            className="flex items-center gap-1.5 bg-black/70 hover:bg-black/90 text-white text-[11px] font-medium px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/10 shadow-lg transition-all"
+          >
+            {mapStyle === 'satellite' ? (
+              <><MapPin className="h-3 w-3" /> Street View</>
+            ) : (
+              <><Navigation className="h-3 w-3" /> Satellite</>
+            )}
+          </button>
+        </div>
 
         {/* ── Road routes ── */}
         {routes.length > 0 && (

@@ -533,8 +533,10 @@ export default function TripDetailPage() {
               {activeTab === "recommendations" && (
                 <DestinationRecommendations
                   city={trip.destination_city}
+                  tripId={tripId}
                   tripDays={trip.duration_days}
                   tripBudgetUsd={Number(trip.budget_usd)}
+                  onItineraryUpdate={(updated) => setItinerary(updated)}
                 />
               )}
 

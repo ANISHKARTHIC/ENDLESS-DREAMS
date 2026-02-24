@@ -17,6 +17,9 @@ import {
   ChevronRight,
   Sparkles,
   BadgePercent,
+  Plus,
+  Check,
+  Loader2,
 } from "lucide-react";
 import { useCurrency } from "@/contexts/currency-context";
 import { api } from "@/lib/api";
@@ -36,8 +39,10 @@ interface RecommendationData {
 
 interface DestinationRecommendationsProps {
   city: string;
+  tripId?: string;
   tripDays?: number;
   tripBudgetUsd?: number;
+  onItineraryUpdate?: (itinerary: import('@/types').Itinerary) => void;
 }
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
@@ -67,13 +72,33 @@ const BREAKDOWN_COLORS: Record<string, string> = {
 
 export function DestinationRecommendations({
   city,
+  tripId,
   tripDays,
   tripBudgetUsd,
+  onItineraryUpdate,
 }: DestinationRecommendationsProps) {
   const [data, setData] = useState<RecommendationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTier, setSelectedTier] = useState<string>("moderate");
+  const [addingPlace, setAddingPlace] = useState<string | null>(null);
+  const [addedPlaces, setAddedPlaces] = useState<Set<string>>(new Set());
   const { convertFromUsd, symbol } = useCurrency();
+
+  const handleAddToItinerary = async (placeName: string) => {
+    if (!tripId || addingPlace || addedPlaces.has(placeName)) return;
+    setAddingPlace(placeName);
+    try {
+      const result = await api.customizeTrip(tripId, {
+        message: `Add ${placeName} to my itinerary`,
+      });
+      setAddedPlaces((prev) => new Set([...prev, placeName]));
+      if (result.itinerary && onItineraryUpdate) onItineraryUpdate(result.itinerary);
+    } catch {
+      // silent
+    } finally {
+      setAddingPlace(null);
+    }
+  };
 
   useEffect(() => {
     if (!city) return;
@@ -285,17 +310,17 @@ export function DestinationRecommendations({
               <span className="text-sm font-medium text-foreground">Top Places</span>
             </div>
             <div className="space-y-1.5">
-              {data.top_places.slice(0, 5).map((place, i) => (
+              {data.top_places.slice(0, 6).map((place, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-muted/30 transition"
+                  className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-muted/30 transition group"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="h-5 w-5 rounded-md bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="h-5 w-5 rounded-md bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0">
                       {i + 1}
                     </span>
-                    <div>
-                      <p className="text-xs font-medium text-foreground">{place.name}</p>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{place.name}</p>
                       <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                         {CATEGORY_ICONS[place.category]}
                         <span className="capitalize">{place.category}</span>
@@ -303,12 +328,36 @@ export function DestinationRecommendations({
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs font-semibold">{symbol}{Math.round(convertFromUsd(Number(place.avg_cost_usd))).toLocaleString()}</p>
-                    <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                      <Clock className="h-2.5 w-2.5" />
-                      {Math.round(place.avg_duration_minutes / 60 * 10) / 10}h
-                    </p>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="text-right">
+                      <p className="text-xs font-semibold">{symbol}{Math.round(convertFromUsd(Number(place.avg_cost_usd))).toLocaleString()}</p>
+                      <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                        <Clock className="h-2.5 w-2.5" />
+                        {Math.round(place.avg_duration_minutes / 60 * 10) / 10}h
+                      </p>
+                    </div>
+                    {tripId && (
+                      <button
+                        onClick={() => handleAddToItinerary(place.name)}
+                        disabled={!!addingPlace || addedPlaces.has(place.name)}
+                        className={`h-7 w-7 rounded-lg flex items-center justify-center transition-all shrink-0 ${
+                          addedPlaces.has(place.name)
+                            ? 'bg-success/20 text-success cursor-default'
+                            : addingPlace === place.name
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-primary/10 hover:bg-primary hover:text-white text-primary opacity-0 group-hover:opacity-100'
+                        }`}
+                        title={addedPlaces.has(place.name) ? 'Added!' : 'Add to itinerary'}
+                      >
+                        {addingPlace === place.name ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : addedPlaces.has(place.name) ? (
+                          <Check className="h-3.5 w-3.5" />
+                        ) : (
+                          <Plus className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
