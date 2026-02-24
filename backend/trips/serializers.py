@@ -9,7 +9,10 @@ from .models import (
 
 class TripCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating trips (public + authenticated)."""
-    travel_option_id = serializers.UUIDField(required=False, allow_null=True)
+    # CharField instead of UUIDField so client-side fallback IDs (fb-bus-...) don't fail
+    travel_option_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    # Metadata for mock/estimated travel options not stored in DB
+    travel_summary = serializers.DictField(required=False, allow_null=True, default=None)
 
     class Meta:
         model = Trip
@@ -19,7 +22,7 @@ class TripCreateSerializer(serializers.ModelSerializer):
             'group_size',
             'interest_culture', 'interest_nature', 'interest_food',
             'interest_adventure', 'interest_relaxation',
-            'travel_option_id',
+            'travel_option_id', 'travel_summary',
         ]
 
     def validate(self, data):
@@ -66,6 +69,7 @@ class TripSerializer(serializers.ModelSerializer):
             'id': str(opt.id),
             'transport_type': opt.transport_type,
             'provider_name': opt.provider_name,
+            'route_number': getattr(opt, 'route_number', ''),
             'departure_time': opt.departure_time.isoformat() if opt.departure_time else None,
             'arrival_time': opt.arrival_time.isoformat() if opt.arrival_time else None,
             'duration_minutes': opt.duration_minutes,

@@ -253,7 +253,21 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
     // Convert budget from user's local currency to USD for the backend
     data.budget_usd = convertToUsd(form.budget_usd);
     if (selectedTravel) {
-      data.travel_option_id = selectedTravel.id;
+      // Only pass DB-persisted IDs (not client-side fallback IDs starting with 'fb-')
+      if (!selectedTravel.id.startsWith('fb-')) {
+        data.travel_option_id = selectedTravel.id;
+      }
+      // Always pass travel metadata so backend can record it on the trip
+      data.travel_summary = {
+        transport_type: selectedTravel.transport_type,
+        provider_name: selectedTravel.provider_name,
+        route_number: selectedTravel.route_number,
+        duration_minutes: selectedTravel.duration_minutes,
+        price_inr: selectedTravel.price_inr,
+        price_usd: selectedTravel.price_usd,
+        cabin_class: selectedTravel.cabin_class,
+        is_mock: selectedTravel.is_mock,
+      };
     }
     onSubmit(data);
   };
@@ -377,23 +391,30 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
     return options;
   };
 
+  // Build synthetic city objects for fallback generation when real coords unavailable
+  const resolveCityForFallback = (cityName: string, selectedCity: WorldCity | null): WorldCity => {
+    // Priority 1: selected city object with real coords
+    if (selectedCity && (selectedCity.lat !== 0 || selectedCity.lng !== 0)) return selectedCity;
+    // Priority 2: static lookup in world-cities data
+    const found = getCityData(cityName);
+    if (found) return found;
+    // Priority 3: synthetic object — assume India center as rough placeholder
+    return { city: cityName, country: 'India', countryCode: 'IN', emoji: '🇮🇳', lat: 20.5937, lng: 78.9629, region: 'Asia', popular: false };
+  };
+
   // Search travel when entering step 3 (travel)
   const searchTravel = async () => {
     if (!form.departure_city || !form.destination_city || !form.start_date) return;
 
-    // Resolve city objects — prefer selected (has coordinates), fall back to lookup
-    const depC = (selectedDepCity?.lat && selectedDepCity?.lng ? selectedDepCity : null)
-      ?? getCityData(form.departure_city);
-    const destC = (selectedDestCity?.lat && selectedDestCity?.lng ? selectedDestCity : null)
-      ?? getCityData(form.destination_city);
+    // Always resolve city objects — never null, always fallback to synthetic
+    const depC = resolveCityForFallback(form.departure_city, selectedDepCity);
+    const destC = resolveCityForFallback(form.destination_city, selectedDestCity);
 
-    // ── Step 1: Show fallback options immediately so the step is never empty ──
-    if (depC && destC) {
-      const instant = generateFallbackOptions(depC, destC, form.start_date);
-      setTravelOptions(instant);
-    }
+    // ── Step 1: Show fallback options IMMEDIATELY — step is never blank ──
+    const instant = generateFallbackOptions(depC, destC, form.start_date);
+    setTravelOptions(instant);
 
-    // ── Step 2: Try live backend results (Amadeus / DB) ──
+    // ── Step 2: Try live backend (Amadeus / DB) — replace if better results ──
     setTravelLoading(true);
     try {
       const result: TravelSearchResponse = await api.searchTravel({
@@ -403,16 +424,12 @@ export function TripGenerationForm({ onSubmit, isLoading }: TripGenerationFormPr
       });
       const liveOptions = result.options || [];
       if (liveOptions.length > 0) {
-        // Replace fallback with real data
         setTravelOptions(liveOptions);
       }
-      // else: fallback already shown — keep it
+      // else: keep instant fallback
     } catch (err) {
-      console.warn("Travel search API unavailable, using estimated options:", err);
-      // Fallback already set above; if depC/destC was null above, try once more now
-      if ((!depC || !destC) && selectedDepCity && selectedDestCity) {
-        setTravelOptions(generateFallbackOptions(selectedDepCity, selectedDestCity, form.start_date));
-      }
+      console.warn("Travel search API unavailable, keeping estimated options.", err);
+      // instant fallback already shown — nothing to do
     } finally {
       setTravelLoading(false);
     }

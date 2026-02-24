@@ -78,15 +78,16 @@ class TripGenerateView(APIView):
             interest_relaxation=data.get('interest_relaxation', 0.5),
         )
 
-        # Attach selected travel option if provided
+        # Attach selected travel option if provided (skip client-side fallback IDs)
         travel_option_id = data.get('travel_option_id')
-        if travel_option_id:
+        if travel_option_id and not str(travel_option_id).startswith('fb-'):
             from travel.models import TravelOption
             try:
-                travel_opt = TravelOption.objects.get(id=travel_option_id)
+                import uuid as _uuid
+                travel_opt = TravelOption.objects.get(id=_uuid.UUID(str(travel_option_id)))
                 trip.selected_travel_option = travel_opt
-            except TravelOption.DoesNotExist:
-                pass
+            except (TravelOption.DoesNotExist, ValueError, Exception):
+                pass  # graceful — trip still generates without travel option
 
         if request.user.is_authenticated:
             trip.user = request.user

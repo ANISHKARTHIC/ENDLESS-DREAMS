@@ -470,7 +470,17 @@ export function TravelComparison({
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {filtered.length === 0 && options.length > 0 ? (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground text-sm mb-3">No {filterType} options for this route.</p>
+          <button
+            onClick={() => setFilterType("all")}
+            className="text-sm text-primary hover:underline"
+          >
+            Show all {options.length} options
+          </button>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">No travel options found for this route.</p>
         </div>

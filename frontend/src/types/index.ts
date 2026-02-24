@@ -75,6 +75,16 @@ export interface TripGenerateRequest {
   interest_adventure?: number;
   interest_relaxation?: number;
   travel_option_id?: string;
+  travel_summary?: {
+    transport_type: string;
+    provider_name: string;
+    route_number?: string;
+    duration_minutes: number;
+    price_inr: number;
+    price_usd?: number;
+    cabin_class?: string;
+    is_mock?: boolean;
+  };
 }
 
 /* ──── Travel Types ──── */
