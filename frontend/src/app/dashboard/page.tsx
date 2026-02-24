@@ -9,7 +9,7 @@ import { TripGenerationForm } from "@/components/trip/trip-generation-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import type { TripGenerateRequest, Trip } from "@/types";
-import { Sparkles, MapPin, Calendar, Plane, ArrowRight, Settings2, Globe, Users, DollarSign, Clock } from "lucide-react";
+import { Sparkles, MapPin, Calendar, Plane, ArrowRight, Settings2, Globe, Users, DollarSign, Clock, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -19,17 +19,47 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [recentTrips, setRecentTrips] = useState<Trip[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [tripImages, setTripImages] = useState<Record<string, string>>({});
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Load recent trips
   React.useEffect(() => {
     api
       .getTrips()
       .then((res) => {
-        setRecentTrips(res.results || []);
+        const trips = res.results || [];
+        setRecentTrips(trips);
         setLoaded(true);
+        // Fetch cover images for each trip
+        trips.slice(0, 6).forEach((trip) => {
+          api
+            .getUnsplashPhotos({ city: trip.destination_city, count: 1 })
+            .then((r: any) => {
+              const photo = r?.photos?.[0];
+              if (photo?.url_regular) {
+                setTripImages((prev) => ({ ...prev, [trip.id]: photo.url_regular }));
+              }
+            })
+            .catch(() => {});
+        });
       })
       .catch(() => setLoaded(true));
   }, []);
+
+  const handleDeleteTrip = async (e: React.MouseEvent, tripId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm("Delete this trip? This cannot be undone.")) return;
+    setDeletingId(tripId);
+    try {
+      await api.deleteTrip(tripId);
+      setRecentTrips((prev) => prev.filter((t) => t.id !== tripId));
+    } catch {
+      alert("Failed to delete trip.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleGenerate = async (data: TripGenerateRequest) => {
     setIsGenerating(true);
@@ -135,22 +165,43 @@ export default function DashboardPage() {
                           className="group rounded-2xl border border-border/50 overflow-hidden hover:shadow-lg hover:border-primary/20 transition-all duration-300"
                         >
                           {/* Cover image or gradient */}
-                          <div className="h-32 bg-gradient-to-br from-primary/20 via-accent/10 to-primary/5 relative overflow-hidden">
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <Globe className="h-12 w-12 text-primary/20" />
-                            </div>
-                            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-card to-transparent h-12" />
+                          <div className="h-36 relative overflow-hidden bg-gradient-to-br from-primary/20 via-accent/10 to-primary/5">
+                            {tripImages[trip.id] ? (
+                              <img
+                                src={tripImages[trip.id]}
+                                alt={trip.destination_city}
+                                className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <Globe className="h-12 w-12 text-primary/20" />
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                             {/* Status badge */}
                             <div className="absolute top-3 right-3">
                               <span className={cn(
-                                "px-2 py-0.5 rounded-full text-[10px] font-medium",
-                                trip.status === "active" ? "bg-emerald-500/20 text-emerald-400" :
-                                trip.status === "completed" ? "bg-blue-500/20 text-blue-400" :
-                                "bg-muted text-muted-foreground"
+                                "px-2 py-0.5 rounded-full text-[10px] font-medium backdrop-blur-sm",
+                                trip.status === "active" ? "bg-emerald-500/30 text-emerald-300" :
+                                trip.status === "completed" ? "bg-blue-500/30 text-blue-300" :
+                                "bg-black/30 text-white/70"
                               )}>
                                 {trip.status}
                               </span>
                             </div>
+                            {/* Delete button */}
+                            <button
+                              onClick={(e) => handleDeleteTrip(e, trip.id)}
+                              disabled={deletingId === trip.id}
+                              className="absolute top-3 left-3 p-1.5 rounded-lg bg-black/40 hover:bg-red-500/80 text-white/70 hover:text-white opacity-0 group-hover:opacity-100 transition-all duration-200 backdrop-blur-sm"
+                              title="Delete trip"
+                            >
+                              {deletingId === trip.id ? (
+                                <div className="h-3.5 w-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                            </button>
                           </div>
                           <div className="p-4">
                             <h3 className="font-semibold text-foreground group-hover:text-primary transition">
