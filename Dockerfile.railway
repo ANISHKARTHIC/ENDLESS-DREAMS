@@ -23,4 +23,4 @@ RUN SECRET_KEY=build-collect-static-placeholder \
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "echo Starting Daphne on PORT=${PORT:-8000}; daphne -b 0.0.0.0 -p ${PORT:-8000} config.asgi:application"]
+CMD ["sh", "-c", "echo Running migrations...; python manage.py migrate --noinput; echo Seeding places...; python manage.py seed_places; echo Starting Daphne on PORT=${PORT:-8000}; daphne -b 0.0.0.0 -p ${PORT:-8000} config.asgi:application"]
