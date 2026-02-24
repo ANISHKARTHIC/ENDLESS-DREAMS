@@ -33,11 +33,12 @@ class PlaceSerializer(serializers.ModelSerializer):
 
 
 class PlaceListSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for list views."""
+    """Lightweight serializer for list views and itinerary cards."""
     class Meta:
         model = Place
         fields = [
-            'id', 'name', 'category', 'city', 'country',
+            'id', 'name', 'description', 'category', 'city', 'country',
             'latitude', 'longitude', 'rating', 'avg_cost_usd',
-            'image_url', 'is_outdoor',
+            'image_url', 'is_outdoor', 'avg_duration_minutes',
+            'opening_hour', 'closing_hour',
         ]

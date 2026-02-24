@@ -134,6 +134,15 @@ export default function TripDetailPage() {
     });
   }, [tripId]);
 
+  // Live weather polling — refresh every 3 minutes
+  useEffect(() => {
+    if (!trip?.destination_city) return;
+    const interval = setInterval(() => {
+      api.getWeather(trip.destination_city).then(setWeather).catch(() => {});
+    }, 3 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [trip?.destination_city]);
+
   // Handle real-time messages
   useEffect(() => {
     if (!lastMessage) return;

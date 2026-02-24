@@ -83,31 +83,68 @@ export function BudgetProgress({
 }: BudgetProgressProps) {
   const spent = Number(spentRaw);
   const total = Number(totalRaw);
-  const percentage = (spent / total) * 100;
-  const variant =
+  const percentage = total > 0 ? Math.min((spent / total) * 100, 100) : 0;
+  const remaining = Math.max(total - spent, 0);
+
+  const statusColor =
+    percentage > 90
+      ? "text-red-500"
+      : percentage > 70
+      ? "text-amber-500"
+      : "text-emerald-500";
+
+  const barVariant =
     percentage > 90 ? "danger" : percentage > 70 ? "warning" : "gradient";
+
+  const statusLabel =
+    percentage > 90 ? "Over budget" : percentage > 70 ? "Watch your spend" : "On track";
 
   return (
     <div className="space-y-2">
-      <div className="flex justify-between items-baseline">
-        <span className="text-sm font-medium text-foreground">Budget</span>
-        <div className="text-right">
-          <span className="text-lg font-bold text-foreground">
-            {currency}
-            {spent.toLocaleString()}
+      <div className="flex items-end justify-between">
+        <div>
+          <span className="text-sm font-semibold text-foreground">Budget</span>
+          <span className={cn("ml-2 text-xs font-medium", statusColor)}>
+            · {statusLabel}
+          </span>
+        </div>
+        <div className="text-right leading-tight">
+          <span className="text-lg font-bold text-foreground tabular-nums">
+            {currency}{Math.round(spent).toLocaleString()}
           </span>
           <span className="text-sm text-muted-foreground">
-            {" "}
-            / {currency}
-            {total.toLocaleString()}
+            {" / "}{currency}{Math.round(total).toLocaleString()}
           </span>
         </div>
       </div>
-      <Progress value={spent} max={total} variant={variant} size="md" />
-      <p className="text-xs text-muted-foreground text-right">
-        {currency}
-        {(total - spent).toLocaleString()} remaining
-      </p>
+      <div className="relative h-2.5 w-full rounded-full bg-muted overflow-hidden">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-1000 ease-out",
+            variantClasses[barVariant]
+          )}
+          style={{ width: `${percentage}%` }}
+        />
+        {/* Subtle shimmer on the bar */}
+        {percentage > 0 && percentage < 100 && (
+          <div
+            className="absolute inset-y-0 left-0 rounded-full opacity-25"
+            style={{
+              width: `${percentage}%`,
+              background:
+                "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)",
+              backgroundSize: "200% 100%",
+              animation: "shimmer-bar 2s linear infinite",
+            }}
+          />
+        )}
+      </div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">{Math.round(percentage)}% used</span>
+        <span className={cn("font-medium", remaining === 0 ? "text-red-500" : "text-muted-foreground")}>
+          {currency}{Math.round(remaining).toLocaleString()} left
+        </span>
+      </div>
     </div>
   );
 }

@@ -20,30 +20,39 @@ class RouteOptimizer:
     PACE_CONFIG = {
         'relaxed': {
             'start_hour': 10,
-            'end_hour': 18,
+            'end_hour': 19,
             'max_activities': 4,
             'buffer_minutes': 30,
+            'meal_breaks': [('13:00', 60)],  # (start_time, duration_minutes)
         },
         'moderate': {
             'start_hour': 9,
-            'end_hour': 20,
+            'end_hour': 21,
             'max_activities': 6,
             'buffer_minutes': 20,
+            'meal_breaks': [('12:30', 45), ('19:30', 60)],
         },
         'fast': {
             'start_hour': 8,
             'end_hour': 22,
             'max_activities': 8,
             'buffer_minutes': 15,
+            'meal_breaks': [('12:00', 30), ('19:00', 45)],
         },
     }
+
+    # Estimated meal cost fractions of daily budget
+    MEAL_COST_FRACTION = 0.25   # meals ~ 25% of daily budget
+    TRANSPORT_LOCAL_FRACTION = 0.10  # local transport ~ 10%
+    ACTIVITY_BUDGET_FRACTION = 0.65  # 65% of daily budget for activities
 
     def __init__(self, trip, scored_places: List[Dict[str, Any]]):
         self.trip = trip
         self.scored_places = scored_places
         self.pace_config = self.PACE_CONFIG.get(trip.pace, self.PACE_CONFIG['moderate'])
         self.duration_days = trip.duration_days
-        self.daily_budget = float(trip.budget_usd) / max(1, self.duration_days)
+        # Use only activity budget fraction so meals/transport aren't over-counted
+        self.daily_budget = (float(trip.budget_usd) / max(1, self.duration_days)) * self.ACTIVITY_BUDGET_FRACTION
 
     def optimize(self) -> List[Dict[str, Any]]:
         """Generate full itinerary. Returns list of item dicts."""
@@ -68,13 +77,21 @@ class RouteOptimizer:
         return itinerary_items
 
     def _plan_day(self, day_number: int, available: List[Dict], used: set) -> List[Dict]:
-        """Plan activities for a single day using greedy nearest-neighbor."""
+        """Plan activities for a single day using greedy nearest-neighbor with meal breaks."""
         items = []
         current_time = self.pace_config['start_hour'] * 60  # minutes from midnight
         end_time = self.pace_config['end_hour'] * 60
         max_activities = self.pace_config['max_activities']
         buffer = self.pace_config['buffer_minutes']
         daily_cost = Decimal('0')
+
+        # Pre-compute meal block times to skip (to avoid scheduling activities during meals)
+        meal_blocks = []
+        for meal_start_str, meal_dur in self.pace_config.get('meal_breaks', []):
+            mh, mm = map(int, meal_start_str.split(':'))
+            meal_start_min = mh * 60 + mm
+            meal_end_min = meal_start_min + meal_dur
+            meal_blocks.append((meal_start_min, meal_end_min))
 
         # Start from city center (approximate)
         prev_lat = None
@@ -87,11 +104,27 @@ class RouteOptimizer:
 
         order = 1
         selected_today = set()
+        categories_used = []  # Track category variety
 
         while current_time < end_time and order <= max_activities and candidates:
-            # Find best next place considering distance
+            # Skip past any meal blocks
+            for meal_start, meal_end in meal_blocks:
+                if current_time >= meal_start and current_time < meal_end:
+                    current_time = meal_end + 5  # small buffer after meal
+                    break
+
+            if current_time >= end_time:
+                break
+
+            # Find best next place considering distance + category variety
             best = None
             best_adjusted_score = -1
+            best_travel_time = 0
+
+            # Count how many times each category appears today
+            cat_counts: Dict[str, int] = {}
+            for c in categories_used:
+                cat_counts[c] = cat_counts.get(c, 0) + 1
 
             for candidate in candidates:
                 if candidate['place_id'] in selected_today:
@@ -117,12 +150,20 @@ class RouteOptimizer:
                     travel_minutes = self._estimate_travel_time(dist)
                     distance_factor = math.exp(-dist / 15.0)
 
-                # Check if we have time
+                # Check if we have time (including potential meal after this)
                 total_needed = travel_minutes + place.avg_duration_minutes + buffer
                 if current_time + total_needed > end_time:
                     continue
 
-                adjusted_score = candidate['total_score'] * 0.7 + distance_factor * 0.3
+                # Category diversity bonus: reduce score if category overused
+                same_cat_count = cat_counts.get(place.category, 0)
+                diversity_factor = 1.0 / (1.0 + same_cat_count * 0.4)
+
+                adjusted_score = (
+                    candidate['total_score'] * 0.55
+                    + distance_factor * 0.30
+                    + diversity_factor * 0.15
+                )
 
                 if adjusted_score > best_adjusted_score:
                     best = candidate
@@ -149,6 +190,7 @@ class RouteOptimizer:
             })
 
             selected_today.add(best['place_id'])
+            categories_used.append(place.category)
             daily_cost += place.avg_cost_usd
             current_time = end_minutes + buffer
             prev_lat = place.latitude

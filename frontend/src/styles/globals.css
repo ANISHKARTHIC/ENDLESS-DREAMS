@@ -2,10 +2,10 @@
 
 @theme {
   --color-background: #ffffff;
-  --color-foreground: #1a1a2e;
-  --color-muted: #f5f7fa;
-  --color-muted-foreground: #6b7280;
-  --color-border: #e5e7eb;
+  --color-foreground: #0f172a;
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+  --color-border: #e2e8f0;
   --color-ring: #0ea5e9;
   --color-primary: #0ea5e9;
   --color-primary-foreground: #ffffff;
@@ -17,83 +17,100 @@
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
   --color-card: #ffffff;
-  --color-card-foreground: #1a1a2e;
+  --color-card-foreground: #0f172a;
   --color-popover: #ffffff;
-  --color-popover-foreground: #1a1a2e;
+  --color-popover-foreground: #0f172a;
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --radius: 0.75rem;
 }
 
 @layer base {
-  * {
+  /* Smooth theme transitions on ALL color-bearing properties */
+  *,
+  *::before,
+  *::after {
     @apply border-border;
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-duration: 300ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* But keep transform/opacity instantaneous for interactions */
+  button,
+  a,
+  [role="button"] {
+    transition-property: background-color, border-color, color, opacity, transform, box-shadow;
+    transition-duration: 150ms;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
-    background: #ffffff;
+    background: var(--color-background);
     min-height: 100vh;
   }
 
   .dark {
-    --color-background: #0a0a0a;
-    --color-foreground: #fafafa;
-    --color-muted: #1c1c1c;
-    --color-muted-foreground: #a3a3a3;
-    --color-border: #262626;
-    --color-ring: #0ea5e9;
-    --color-card: #141414;
-    --color-card-foreground: #fafafa;
-    --color-popover: #141414;
-    --color-popover-foreground: #fafafa;
+    --color-background: #070b14;
+    --color-foreground: #f1f5f9;
+    --color-muted: #111827;
+    --color-muted-foreground: #94a3b8;
+    --color-border: #1e293b;
+    --color-ring: #38bdf8;
+    --color-card: #0d1321;
+    --color-card-foreground: #f1f5f9;
+    --color-popover: #0d1321;
+    --color-popover-foreground: #f1f5f9;
     --color-secondary: #0c2d48;
     --color-secondary-foreground: #bae6fd;
-    --color-accent: #f59e0b;
+    --color-primary: #38bdf8;
+    --color-accent: #fbbf24;
   }
 
   .dark body {
-    background: #0a0a0a;
+    background: var(--color-background);
   }
 }
 
 .glass {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
   border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .dark .glass {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(7, 11, 20, 0.85);
+  border-color: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
 }
 
 .glass-card {
   background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px) saturate(2);
+  -webkit-backdrop-filter: blur(24px) saturate(2);
   border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 1rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.04);
 }
 
 .dark .glass-card {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+  background: rgba(13, 19, 33, 0.92);
+  border-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3);
 }
 
 .glass-subtle {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .dark .glass-subtle {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 .gradient-text {
@@ -255,6 +272,12 @@
 @keyframes text-shimmer {
   0% { background-position: 200% center; }
   100% { background-position: -200% center; }
+}
+
+/* Budget progress bar shimmer */
+@keyframes shimmer-bar {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 /* Step wheel spin animation */
