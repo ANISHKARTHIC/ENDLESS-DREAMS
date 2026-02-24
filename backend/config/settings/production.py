@@ -4,7 +4,16 @@ from .base import *  # noqa
 
 DEBUG = False
 
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',')
+_allowed_hosts_env = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if h.strip()]
+_railway_public = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '').strip()
+
+ALLOWED_HOSTS = [
+    *_allowed_hosts_env,
+    *([_railway_public] if _railway_public else []),
+    '.up.railway.app',
+    'localhost',
+    '127.0.0.1',
+]
 
 # ── Database ──────────────────────────────────────────────────────────────────
 # Fly.io attaches Postgres and injects DATABASE_URL automatically.

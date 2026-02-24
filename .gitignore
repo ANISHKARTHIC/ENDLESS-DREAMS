@@ -53,3 +53,5 @@ celerybeat.pid
 # Static files
 staticfiles/
 media/
+.env.railway.required
+.env.vercel.required
